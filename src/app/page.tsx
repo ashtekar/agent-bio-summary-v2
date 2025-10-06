@@ -23,17 +23,17 @@ export default function Home() {
                 🚀 System Status
               </h3>
               <div className="space-y-4">
-                <div className="flex flex-col space-y-2">
-                  <span className="text-gray-600 dark:text-gray-300 font-medium">API Status</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium w-fit">
+                <div>
+                  <div className="text-gray-600 dark:text-gray-300 font-medium mb-2">API Status</div>
+                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium w-fit">
                     Operational
-                  </span>
+                  </div>
                 </div>
-                <div className="flex flex-col space-y-2">
-                  <span className="text-gray-600 dark:text-gray-300 font-medium">Agent Type</span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                <div>
+                  <div className="text-gray-600 dark:text-gray-300 font-medium mb-2">Agent Type</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     LLM-driven with OpenAI function calling
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -43,17 +43,17 @@ export default function Home() {
                 🔧 Available Endpoints
               </h3>
               <div className="space-y-4">
-                <div className="flex flex-col space-y-2">
-                  <code className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded font-mono w-fit">
+                <div>
+                  <div className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded font-mono w-fit mb-2">
                     GET /api/daily-summary
-                  </code>
-                  <span className="text-xs text-gray-500">API Info</span>
+                  </div>
+                  <div className="text-xs text-gray-500">API Info</div>
                 </div>
-                <div className="flex flex-col space-y-2">
-                  <code className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded font-mono w-fit">
+                <div>
+                  <div className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded font-mono w-fit mb-2">
                     POST /api/daily-summary
-                  </code>
-                  <span className="text-xs text-gray-500">Generate Summary</span>
+                  </div>
+                  <div className="text-xs text-gray-500">Generate Summary</div>
                 </div>
               </div>
             </div>
