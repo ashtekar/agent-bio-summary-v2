@@ -163,7 +163,10 @@ export class LLMDrivenBioSummaryAgent {
         if (message.tool_calls && message.tool_calls.length > 0) {
           console.log(`LLM requested ${message.tool_calls.length} tool calls`);
           
-          const toolResults = await this.executeToolCalls(message.tool_calls);
+          // Preprocess tool calls to prevent oversized JSON
+          const preprocessedToolCalls = this.preprocessToolCalls(message.tool_calls);
+          
+          const toolResults = await this.executeToolCalls(preprocessedToolCalls);
           
           // Add tool results to messages
           toolResults.forEach((result, index) => {
@@ -210,6 +213,44 @@ export class LLMDrivenBioSummaryAgent {
   }
 
   /**
+   * Preprocess tool calls to prevent oversized JSON arguments
+   */
+  private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
+    return toolCalls.map(toolCall => {
+      if (toolCall.function.name === 'scoreRelevancy') {
+        try {
+          const args = JSON.parse(toolCall.function.arguments);
+          
+          if (args.articles && Array.isArray(args.articles)) {
+            // Limit to maximum 2 articles and truncate content
+            const limitedArticles = args.articles.slice(0, 2).map((article: any) => ({
+              ...article,
+              content: article.content ? article.content.substring(0, 800) + '...' : article.content
+            }));
+            
+            const limitedArgs = { articles: limitedArticles };
+            const newArguments = JSON.stringify(limitedArgs);
+            
+            console.log(`Preprocessed scoreRelevancy: limited from ${args.articles.length} to ${limitedArticles.length} articles, args length: ${newArguments.length}`);
+            
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: newArguments
+              }
+            };
+          }
+        } catch (error) {
+          console.warn('Failed to preprocess scoreRelevancy tool call:', error);
+        }
+      }
+      
+      return toolCall;
+    });
+  }
+
+  /**
    * Execute tool calls requested by the LLM
    */
   private async executeToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): Promise<any[]> {
@@ -219,7 +260,7 @@ export class LLMDrivenBioSummaryAgent {
       try {
         console.log(`Executing tool: ${toolCall.function.name}`);
         
-        // Add robust JSON parsing with error handling
+        // Parse tool arguments (should be valid JSON after preprocessing)
         let args;
         try {
           args = JSON.parse(toolCall.function.arguments);
@@ -227,64 +268,7 @@ export class LLMDrivenBioSummaryAgent {
           console.error(`JSON parsing failed for tool ${toolCall.function.name}:`, jsonError);
           console.error(`Raw arguments length:`, toolCall.function.arguments.length);
           console.error(`Raw arguments preview:`, toolCall.function.arguments.substring(0, 500) + '...');
-          
-          // For scoreRelevancy tool, handle the specific case of oversized article content
-          if (toolCall.function.name === 'scoreRelevancy') {
-            console.log('Handling scoreRelevancy tool with oversized arguments');
-            
-            // Try to extract articles from the malformed JSON and limit them
-            try {
-              const rawArgs = toolCall.function.arguments;
-              const articlesMatch = rawArgs.match(/"articles":\s*\[(.*?)\]/s);
-              
-              if (articlesMatch) {
-                // Limit to first 2 articles to prevent oversized JSON
-                const limitedArgs = rawArgs.replace(
-                  /"articles":\s*\[.*?\]/s,
-                  `"articles":[${articlesMatch[1].split('},{').slice(0, 2).join('},{')}]`
-                );
-                
-                console.log('Attempting to parse limited arguments');
-                args = JSON.parse(limitedArgs);
-                
-                // Further truncate article content if still too long
-                if (args.articles && Array.isArray(args.articles)) {
-                  args.articles = args.articles.map((article: any) => ({
-                    ...article,
-                    content: article.content ? article.content.substring(0, 1000) + '...' : article.content
-                  }));
-                }
-              } else {
-                throw new Error('Could not extract articles from malformed JSON');
-              }
-            } catch (fallbackError) {
-              console.error('Fallback parsing failed:', fallbackError);
-              throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
-            }
-          } else {
-            // For other tools, try the original truncation logic
-            let fixedArgs = toolCall.function.arguments;
-            
-            if (fixedArgs.length > 10000) {
-              console.warn(`Arguments too long (${fixedArgs.length} chars), truncating to 10000 chars`);
-              fixedArgs = fixedArgs.substring(0, 10000);
-              
-              const lastBrace = fixedArgs.lastIndexOf('}');
-              const lastBracket = fixedArgs.lastIndexOf(']');
-              const truncateAt = Math.max(lastBrace, lastBracket);
-              
-              if (truncateAt > 5000) {
-                fixedArgs = fixedArgs.substring(0, truncateAt + 1);
-              }
-            }
-            
-            try {
-              args = JSON.parse(fixedArgs);
-            } catch (retryError) {
-              console.error(`Retry JSON parsing also failed:`, retryError);
-              throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
-            }
-          }
+          throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
         }
         
         const result = await this.executeTool(toolCall.function.name as ToolFunctionName, args);
