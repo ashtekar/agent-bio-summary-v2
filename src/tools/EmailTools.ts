@@ -373,8 +373,8 @@ export class EmailTools {
       return {
         success: true,
         data: {
-          domains: data?.data || [],
-          totalDomains: data?.data?.length || 0
+          domains: data || [],
+          totalDomains: Array.isArray(data) ? data.length : 0
         },
         metadata: {
           executionTime: Date.now(),
