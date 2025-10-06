@@ -1,128 +1,158 @@
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Header */}
-          <div className="mb-12">
-            <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
-              🧬 Agent Bio Summary V2
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-              LLM-driven bio summary agent for synthetic biology education
-            </p>
-            <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-              This system was designed to educate motivated high school students on advances and applications of synthetic biology.
-            </p>
-          </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', padding: '2rem' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+            🧬 Agent Bio Summary V2
+          </h1>
+          <p style={{ fontSize: '1.25rem', color: '#64748b', marginBottom: '1rem' }}>
+            LLM-driven bio summary agent for synthetic biology education
+          </p>
+          <p style={{ fontSize: '1.125rem', color: '#94a3b8' }}>
+            This system was designed to educate motivated high school students on advances and applications of synthetic biology.
+          </p>
+        </div>
 
-          {/* Status Cards */}
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                🚀 System Status
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-gray-600 dark:text-gray-300 font-medium mb-2">API Status</div>
-                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium w-fit">
-                    Operational
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-600 dark:text-gray-300 font-medium mb-2">Agent Type</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    LLM-driven with OpenAI function calling
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                🔧 Available Endpoints
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded font-mono w-fit mb-2">
-                    GET /api/daily-summary
-                  </div>
-                  <div className="text-xs text-gray-500">API Info</div>
-                </div>
-                <div>
-                  <div className="text-sm bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded font-mono w-fit mb-2">
-                    POST /api/daily-summary
-                  </div>
-                  <div className="text-xs text-gray-500">Generate Summary</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Features */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 mb-12">
-            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-              🎯 Key Features
+        {/* Status Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+              🚀 System Status
             </h3>
-            <div className="grid md:grid-cols-2 gap-6 text-left">
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">🤖</span>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">LLM-Driven Agent</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      Utilizes OpenAI's Agent SDK for dynamic decision-making and tool orchestration
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">🔍</span>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">Smart Search</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      Discovers relevant articles using Google Custom Search API
-                    </p>
-                  </div>
-                </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>API Status</div>
+              <div style={{ 
+                display: 'inline-block', 
+                backgroundColor: '#dcfce7', 
+                color: '#166534', 
+                padding: '0.25rem 0.75rem', 
+                borderRadius: '9999px', 
+                fontSize: '0.875rem', 
+                fontWeight: '500' 
+              }}>
+                Operational
               </div>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">📝</span>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">Intelligent Summarization</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      Generates concise summaries for individual articles using LLM
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">📧</span>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">Email Delivery</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">
-                      Professional email delivery via Resend.io with HTML templates
-                    </p>
-                  </div>
-                </div>
+            </div>
+            <div>
+              <div style={{ fontWeight: '500', marginBottom: '0.5rem' }}>Agent Type</div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                LLM-driven with OpenAI function calling
               </div>
             </div>
           </div>
 
-          {/* API Test Section */}
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-8 text-white">
-            <h3 className="text-2xl font-semibold mb-4">🧪 Test the API</h3>
-            <p className="mb-6">Try the API endpoints to see the system in action</p>
-            <div className="space-y-4">
-              <a
-                href="/api/daily-summary"
-                className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View API Information →
-              </a>
+          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+              🔧 Available Endpoints
+            </h3>
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ 
+                backgroundColor: '#f1f5f9', 
+                padding: '0.5rem 0.75rem', 
+                borderRadius: '0.25rem', 
+                fontFamily: 'monospace', 
+                fontSize: '0.875rem',
+                marginBottom: '0.5rem',
+                display: 'inline-block'
+              }}>
+                GET /api/daily-summary
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>API Info</div>
+            </div>
+            <div>
+              <div style={{ 
+                backgroundColor: '#f1f5f9', 
+                padding: '0.5rem 0.75rem', 
+                borderRadius: '0.25rem', 
+                fontFamily: 'monospace', 
+                fontSize: '0.875rem',
+                marginBottom: '0.5rem',
+                display: 'inline-block'
+              }}>
+                POST /api/daily-summary
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Generate Summary</div>
             </div>
           </div>
+        </div>
+
+        {/* Features */}
+        <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginBottom: '3rem' }}>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem', textAlign: 'center' }}>
+            🎯 Key Features
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🤖</span>
+                <div>
+                  <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>LLM-Driven Agent</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    Utilizes OpenAI's Agent SDK for dynamic decision-making and tool orchestration
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🔍</span>
+                <div>
+                  <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Smart Search</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    Discovers relevant articles using Google Custom Search API
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>📝</span>
+                <div>
+                  <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Intelligent Summarization</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    Generates concise summaries for individual articles using LLM
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>📧</span>
+                <div>
+                  <h4 style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Email Delivery</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    Professional email delivery via Resend.io with HTML templates
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* API Test Section */}
+        <div style={{ 
+          background: 'linear-gradient(to right, #3b82f6, #8b5cf6)', 
+          borderRadius: '0.5rem', 
+          padding: '2rem', 
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>🧪 Test the API</h3>
+          <p style={{ marginBottom: '1.5rem' }}>Try the API endpoints to see the system in action</p>
+          <a
+            href="/api/daily-summary"
+            style={{
+              display: 'inline-block',
+              backgroundColor: 'white',
+              color: '#3b82f6',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              fontWeight: '600',
+              textDecoration: 'none'
+            }}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View API Information →
+          </a>
         </div>
       </div>
     </div>
