@@ -2,7 +2,7 @@ import { EmailRecipient, ToolResult } from '@/types/agent';
 import { Resend } from 'resend';
 
 export class EmailTools {
-  private resend: Resend;
+  private resend: Resend | null = null;
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
@@ -85,6 +85,10 @@ export class EmailTools {
    */
   private async sendToRecipient(recipient: EmailRecipient, subject: string, html: string): Promise<void> {
     try {
+      if (!this.resend) {
+        throw new Error('Resend client not initialized');
+      }
+      
       const { data, error } = await this.resend.emails.send({
         from: 'Agent Bio Summary <noreply@agentbiosummary.com>',
         to: [recipient.email],
