@@ -1,0 +1,32 @@
+This project (Agent Bio Summary v2) is the agentic version of Agent Bio Summary. We are going to be building the agentic version by using tool calls. Consider this a rewrite of Agent Bio Summary. If you need to review & understand the source code of Agent Bio Summary, please ask me for the path to source code. The following are the considerations as we rewrite the application.
+
+(1) We are only changing the core flow on Daily Summary generation by using an agentic approach. All other flows should remain the same as in Agent Bio Summary.
+(2) Use OpenAI agent SDK (typescript) for the agentic code.
+(3) Keep the web pages - dashboard page, settings page, daily summaries page, comparison page (for A/B preferences), feedback page, user & session manaagement.
+(4) Use Langchain to store all the prompts & instructions to LLM.
+(5) Use Langchain for all traces & evals. I want the ability to use annotations on traces in langchain. These annotations will be used by llm-as-a-judge to grade the quality of the agentic run. And the grading (pass/fail) will be used to fine tune the LLM used by the agent using reinforcement learning i.e. Reinforcement Fine Tuning.
+(6) Use vercel env.local from the Agent Bio Summary project. We will create a new project (agent-bio-summary-v2)in supabase so as to not overwrite the database tables of Agent Bio Summary. All tables from Agent Bio Summary will need to be copied over to this new project, but we may not usee all of them in our new application (v2). Adjust the env variables to reflect this new project.
+
+Here's the flow for the agentic version:
+
+1. User clicks on the "Generate Daily Summary" button on the dashboard page.
+2. The agent is called to generate the daily summary.
+3. The agent builds the context - picks up the prompt from Langchain & list of articles, list receipients, search settings, system settings from supabase.
+4. The agent uses tool calls to generate & send the daily summary with the following tool call sequence. If this is an instruction to the LLM, we should keep this in langchain.
+    a. search the web using the list of article URLs provided in the context
+    b. extract the articles from the search results using the search settings (time window & num of articles) provided in the context
+    c. score the articles for relevancy using the existing code from Agent Bio Summary.
+    d. store in Supabase only the articles with a relavancy score greater than the threshold provided in the context. store max of 10 articles. we don't want to summarize more than 10 articles.
+    e. summarize by using the LLM, each article that was just stored by using the prompt provided in the context. The article summary should exceed 100 words.
+    f. collate the summaries into a single summary such that the summary can be emailed to the list of recipients from the context. Use an LLM to do produce a single summary. If these are instructions to the LLM, we should keep this in langchain. The following rules should be followed:
+        - use the email template used in Agent Bio Summary (emailService.ts)
+        - the summary should be in HTML format
+        - each article within the summary should have a heading
+        - each article within the summary should have a link to the article for sourcing
+        - end of summary should have a call to action to the user to provide feedback on the quality of the summary. See the email template (emailService.ts) from Agent Bio Summary.
+    g. send the summary to the list of recipients from the context. use resend.io to send the email. 
+
+
+Please review this doc, check the code of Agent Bio Summary application to understand what needs to be rewritten / refactored / migrated, and ask me any questions you have. I welcome your input and discussion on any gaps you see in the product spec. After this review, we will work on the design spec.
+
+
