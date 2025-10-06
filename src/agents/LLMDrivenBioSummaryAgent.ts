@@ -89,6 +89,10 @@ export class LLMDrivenBioSummaryAgent {
    * Execute the agent using LLM-driven tool calling
    */
   private async executeWithLLM(): Promise<ToolResult> {
+    // Set up timeout to prevent infinite execution
+    const startTime = Date.now();
+    const maxExecutionTime = 50 * 1000; // 50 seconds (leave 10 seconds buffer for Vercel's 60s limit)
+    
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
         role: 'system',
@@ -111,6 +115,9 @@ export class LLMDrivenBioSummaryAgent {
         - collateSummary: Combine summaries into HTML email format
         - sendEmail: Send final summary via email to recipients
         
+        IMPORTANT: When calling tools, keep your arguments concise and under 5000 characters total.
+        For articles with long content, truncate to the first 2000 characters to avoid JSON parsing errors.
+        
         Please use these tools in the appropriate sequence to complete the task.`
       }
     ];
@@ -120,6 +127,13 @@ export class LLMDrivenBioSummaryAgent {
     while (this.currentIteration < this.maxIterations) {
       this.currentIteration++;
       console.log(`LLM iteration ${this.currentIteration}/${this.maxIterations}`);
+
+      // Check for timeout
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime > maxExecutionTime) {
+        console.warn(`Execution timeout reached (${elapsedTime}ms), stopping execution`);
+        break;
+      }
 
       try {
         const response = await this.openai.chat.completions.create({
@@ -202,7 +216,40 @@ export class LLMDrivenBioSummaryAgent {
       try {
         console.log(`Executing tool: ${toolCall.function.name}`);
         
-        const args = JSON.parse(toolCall.function.arguments);
+        // Add robust JSON parsing with error handling
+        let args;
+        try {
+          args = JSON.parse(toolCall.function.arguments);
+        } catch (jsonError) {
+          console.error(`JSON parsing failed for tool ${toolCall.function.name}:`, jsonError);
+          console.error(`Raw arguments:`, toolCall.function.arguments);
+          
+          // Try to fix common JSON issues
+          let fixedArgs = toolCall.function.arguments;
+          
+          // Handle unterminated strings by truncating at a reasonable length
+          if (fixedArgs.length > 10000) {
+            console.warn(`Arguments too long (${fixedArgs.length} chars), truncating to 10000 chars`);
+            fixedArgs = fixedArgs.substring(0, 10000);
+            
+            // Try to find a good truncation point (end of a complete JSON object/array)
+            const lastBrace = fixedArgs.lastIndexOf('}');
+            const lastBracket = fixedArgs.lastIndexOf(']');
+            const truncateAt = Math.max(lastBrace, lastBracket);
+            
+            if (truncateAt > 5000) { // Only truncate if we can keep a reasonable amount
+              fixedArgs = fixedArgs.substring(0, truncateAt + 1);
+            }
+          }
+          
+          try {
+            args = JSON.parse(fixedArgs);
+          } catch (retryError) {
+            console.error(`Retry JSON parsing also failed:`, retryError);
+            throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
+          }
+        }
+        
         const result = await this.executeTool(toolCall.function.name as ToolFunctionName, args);
         
         results.push({

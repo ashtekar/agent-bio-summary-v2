@@ -178,6 +178,13 @@ export class SearchTools {
       .replace(/\s+/g, ' ')
       .trim();
     
+    // Limit content length to prevent JSON parsing issues
+    const maxLength = 2000;
+    if (cleanHtml.length > maxLength) {
+      console.warn(`Content truncated from ${cleanHtml.length} to ${maxLength} characters`);
+      return cleanHtml.substring(0, maxLength) + '...';
+    }
+    
     return cleanHtml;
   }
 
