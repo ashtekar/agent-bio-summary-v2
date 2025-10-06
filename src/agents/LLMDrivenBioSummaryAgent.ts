@@ -111,13 +111,14 @@ export class LLMDrivenBioSummaryAgent {
         - extractArticles: Extract full content from search result URLs
         - scoreRelevancy: Score articles for relevancy to synthetic biology (MAX 2 articles per call)
         - storeArticles: Store relevant articles in database (MAX 2 articles per call)
-        - summarizeArticle: Generate individual article summaries (100+ words each)
+        - summarizeArticle: Generate individual article summaries (MAX 2 articles per call)
         - collateSummary: Combine summaries into HTML email format
         - sendEmail: Send final summary via email to recipients
         
         CRITICAL JSON LIMITS:
         - scoreRelevancy: Process maximum 2 articles per call to prevent JSON parsing errors
         - storeArticles: Process maximum 2 articles per call to prevent JSON parsing errors
+        - summarizeArticle: Process maximum 2 articles per call to prevent JSON parsing errors
         - All tool arguments must be under 3000 characters total
         - Article content should be truncated to 1000 characters maximum
         - If you have more than 2 articles, call these tools multiple times with batches of 2
@@ -214,20 +215,64 @@ export class LLMDrivenBioSummaryAgent {
   }
 
   /**
+   * Smart truncate content to preserve important keywords for relevancy scoring
+   */
+  private smartTruncateContent(content: string, maxLength: number): string {
+    if (content.length <= maxLength) {
+      return content;
+    }
+
+    // Keywords that are important for relevancy scoring
+    const importantKeywords = [
+      'synthetic biology', 'bioengineering', 'genetic engineering', 'biotechnology',
+      'biotech', 'molecular biology', 'cell biology', 'protein engineering',
+      'metabolic engineering', 'systems biology', 'synthetic genomics', 'biofabrication'
+    ];
+
+    // Try to find a good truncation point that preserves keywords
+    let bestTruncatePoint = maxLength;
+    let maxKeywordScore = 0;
+
+    // Check different truncation points within a reasonable range
+    for (let i = Math.max(0, maxLength - 200); i <= Math.min(content.length, maxLength + 200); i += 50) {
+      const truncated = content.substring(0, i);
+      let keywordScore = 0;
+      
+      importantKeywords.forEach(keyword => {
+        if (truncated.toLowerCase().includes(keyword.toLowerCase())) {
+          keywordScore += keyword.length; // Longer keywords get more weight
+        }
+      });
+
+      if (keywordScore > maxKeywordScore) {
+        maxKeywordScore = keywordScore;
+        bestTruncatePoint = i;
+      }
+    }
+
+    // If we found a good point, use it; otherwise use simple truncation
+    if (maxKeywordScore > 0) {
+      return content.substring(0, bestTruncatePoint) + '...';
+    } else {
+      return content.substring(0, maxLength) + '...';
+    }
+  }
+
+  /**
    * Preprocess tool calls to prevent oversized JSON arguments
    */
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
       // Handle tools that might have large article data
-      if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles') {
+      if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle') {
         try {
           const args = JSON.parse(toolCall.function.arguments);
           
           if (args.articles && Array.isArray(args.articles)) {
-            // Limit to maximum 2 articles and truncate content
+            // Limit to maximum 2 articles and smart truncate content
             const limitedArticles = args.articles.slice(0, 2).map((article: any) => ({
               ...article,
-              content: article.content ? article.content.substring(0, 800) + '...' : article.content
+              content: article.content ? this.smartTruncateContent(article.content, 800) : article.content
             }));
             
             const limitedArgs = { articles: limitedArticles };

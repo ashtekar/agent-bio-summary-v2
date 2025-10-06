@@ -148,25 +148,26 @@ export const processingToolDefinitions: FunctionDefinition[] = [
 export const summaryToolDefinitions: FunctionDefinition[] = [
   {
     name: 'summarizeArticle',
-    description: 'Generate individual summaries for articles using Langchain and OpenAI, minimum 100 words each',
+    description: 'Generate individual summaries for articles using Langchain and OpenAI, minimum 100 words each. IMPORTANT: Process articles in batches of maximum 2 articles to avoid JSON parsing errors.',
     parameters: {
       type: 'object',
       properties: {
         articles: {
           type: 'array',
+          maxItems: 2,
           items: {
             type: 'object',
             properties: {
               id: { type: 'string' },
               title: { type: 'string' },
               url: { type: 'string' },
-              content: { type: 'string' },
+              content: { type: 'string', maxLength: 1000 },
               publishedDate: { type: 'string' },
               source: { type: 'string' },
               relevancyScore: { type: 'number' }
             }
           },
-          description: 'Array of articles to summarize'
+          description: 'Array of articles to summarize (maximum 2 articles per call)'
         }
       },
       required: ['articles']
