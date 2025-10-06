@@ -72,12 +72,12 @@ export class ProcessingTools {
       // Prepare articles for database insertion
       const articlesToStore = articles.map(article => ({
         id: article.id,
-        title: article.title,
+        title: article.title || 'Untitled Article', // Ensure title is never null
         url: article.url,
         content: article.content,
         published_date: article.publishedDate,
-        source: article.source,
-        relevancy_score: article.relevancyScore,
+        source: article.source || 'unknown', // Ensure source is never null
+        relevancy_score: article.relevancyScore || 0, // Ensure score is never null
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }));
@@ -168,9 +168,17 @@ export class ProcessingTools {
     }
     
     // Recency bonus (newer articles get slight bonus)
-    const daysSincePublished = (Date.now() - article.publishedDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSincePublished < 30) {
-      score += 0.05;
+    try {
+      const publishedDate = new Date(article.publishedDate);
+      if (!isNaN(publishedDate.getTime())) {
+        const daysSincePublished = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSincePublished < 30) {
+          score += 0.05;
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to parse publishedDate: ${article.publishedDate}`, error);
+      // Skip recency bonus if date parsing fails
     }
     
     // Ensure score is between 0 and 1
