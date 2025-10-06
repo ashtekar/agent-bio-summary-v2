@@ -107,9 +107,12 @@ echo "📊 Found $DEPLOYMENT_COUNT deployments"
 TOTAL_DEPLOYMENTS=$(echo "$DEPLOYMENTS_OUTPUT" | grep -c "https://")
 if [ "$TOTAL_DEPLOYMENTS" -le "$KEEP_COUNT" ]; then
   DEPLOYMENT_URLS=""
+  DELETE_COUNT=0
 else
   DELETE_COUNT=$((TOTAL_DEPLOYMENTS - KEEP_COUNT))
-  DEPLOYMENT_URLS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | awk '{print $1}' | head -n "$DELETE_COUNT")
+  # Get the oldest deployments (last ones in the list) to delete
+  # Use tail to get the oldest deployments
+  DEPLOYMENT_URLS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | awk '{print $1}' | tail -n "$DELETE_COUNT")
 fi
 
 if [ -z "$DEPLOYMENT_URLS" ]; then
