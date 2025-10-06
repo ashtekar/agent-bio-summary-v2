@@ -1,0 +1,15 @@
+{
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "LOG_LEVEL": "3"
+  },
+  "build": {
+    "env": {
+      "LOG_LEVEL": "3"
+    }
+  }
+}

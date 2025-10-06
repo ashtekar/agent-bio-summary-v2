@@ -151,7 +151,9 @@ class Logger {
 
 // Create singleton logger instance
 export const logger = new Logger(
-  process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO
+  process.env.LOG_LEVEL ? 
+    parseInt(process.env.LOG_LEVEL) : 
+    (process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.INFO)
 );
 
 // Export types and logger
