@@ -103,14 +103,20 @@ fi
 echo "📊 Found $DEPLOYMENT_COUNT deployments"
 
 # Get deployment URLs (excluding the first line which is headers)
-DEPLOYMENT_URLS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | awk '{print $1}' | head -n -$KEEP_COUNT)
+# Calculate how many to keep and get the rest
+TOTAL_DEPLOYMENTS=$(echo "$DEPLOYMENTS_OUTPUT" | grep -c "https://")
+if [ "$TOTAL_DEPLOYMENTS" -le "$KEEP_COUNT" ]; then
+  DEPLOYMENT_URLS=""
+else
+  DELETE_COUNT=$((TOTAL_DEPLOYMENTS - KEEP_COUNT))
+  DEPLOYMENT_URLS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | awk '{print $1}' | head -n "$DELETE_COUNT")
+fi
 
 if [ -z "$DEPLOYMENT_URLS" ]; then
   echo "✅ No old deployments to clean up (keeping $KEEP_COUNT most recent)"
   exit 0
 fi
 
-DELETE_COUNT=$(echo "$DEPLOYMENT_URLS" | wc -l)
 echo "🗑️  Deployments to delete: $DELETE_COUNT"
 
 if [ "$DRY_RUN" = true ]; then
