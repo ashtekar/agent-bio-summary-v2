@@ -110,16 +110,17 @@ export class LLMDrivenBioSummaryAgent {
         - searchWeb: Search for articles using Google Custom Search
         - extractArticles: Extract full content from search result URLs
         - scoreRelevancy: Score articles for relevancy to synthetic biology (MAX 2 articles per call)
-        - storeArticles: Store relevant articles in database (max 10)
+        - storeArticles: Store relevant articles in database (MAX 2 articles per call)
         - summarizeArticle: Generate individual article summaries (100+ words each)
         - collateSummary: Combine summaries into HTML email format
         - sendEmail: Send final summary via email to recipients
         
         CRITICAL JSON LIMITS:
         - scoreRelevancy: Process maximum 2 articles per call to prevent JSON parsing errors
+        - storeArticles: Process maximum 2 articles per call to prevent JSON parsing errors
         - All tool arguments must be under 3000 characters total
         - Article content should be truncated to 1000 characters maximum
-        - If you have more than 2 articles, call scoreRelevancy multiple times with batches of 2
+        - If you have more than 2 articles, call these tools multiple times with batches of 2
         
         Please use these tools in the appropriate sequence to complete the task.`
       }
@@ -217,7 +218,8 @@ export class LLMDrivenBioSummaryAgent {
    */
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
-      if (toolCall.function.name === 'scoreRelevancy') {
+      // Handle tools that might have large article data
+      if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles') {
         try {
           const args = JSON.parse(toolCall.function.arguments);
           
@@ -231,7 +233,7 @@ export class LLMDrivenBioSummaryAgent {
             const limitedArgs = { articles: limitedArticles };
             const newArguments = JSON.stringify(limitedArgs);
             
-            console.log(`Preprocessed scoreRelevancy: limited from ${args.articles.length} to ${limitedArticles.length} articles, args length: ${newArguments.length}`);
+            console.log(`Preprocessed ${toolCall.function.name}: limited from ${args.articles.length} to ${limitedArticles.length} articles, args length: ${newArguments.length}`);
             
             return {
               ...toolCall,
@@ -242,7 +244,7 @@ export class LLMDrivenBioSummaryAgent {
             };
           }
         } catch (error) {
-          console.warn('Failed to preprocess scoreRelevancy tool call:', error);
+          console.warn(`Failed to preprocess ${toolCall.function.name} tool call:`, error);
         }
       }
       

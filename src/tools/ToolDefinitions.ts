@@ -115,25 +115,26 @@ export const processingToolDefinitions: FunctionDefinition[] = [
   },
   {
     name: 'storeArticles',
-    description: 'Store relevant articles in Supabase database with relevancy scores above threshold',
+    description: 'Store relevant articles in Supabase database with relevancy scores above threshold. IMPORTANT: Process articles in batches of maximum 2 articles to avoid JSON parsing errors.',
     parameters: {
       type: 'object',
       properties: {
         articles: {
           type: 'array',
+          maxItems: 2,
           items: {
             type: 'object',
             properties: {
               id: { type: 'string' },
               title: { type: 'string' },
               url: { type: 'string' },
-              content: { type: 'string' },
+              content: { type: 'string', maxLength: 1000 },
               publishedDate: { type: 'string' },
               source: { type: 'string' },
               relevancyScore: { type: 'number' }
             }
           },
-          description: 'Array of articles to store in database (max 10)'
+          description: 'Array of articles to store in database (maximum 2 articles per call)'
         }
       },
       required: ['articles']
