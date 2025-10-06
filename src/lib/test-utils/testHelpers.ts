@@ -119,18 +119,20 @@ export const createMockSummary = () => ({
 // Test environment setup
 export const setupTestEnvironment = () => {
   // Mock environment variables
-  process.env.NODE_ENV = 'test';
-  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
-  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
-  process.env.OPENAI_API_KEY = 'test-openai-key';
-  process.env.RESEND_API_KEY = 'test-resend-key';
-  process.env.GOOGLE_CUSTOM_SEARCH_API_KEY = 'test-google-key';
-  process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID = 'test-engine-id';
-  process.env.LANGCHAIN_API_KEY = 'test-langchain-key';
-  process.env.LANGCHAIN_TRACING_V2 = 'true';
-  process.env.LANGCHAIN_PROJECT = 'test-project';
-  process.env.NEXT_PUBLIC_BASE_URL = 'http://localhost:3000';
+  Object.assign(process.env, {
+    NODE_ENV: 'test',
+    NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
+    SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+    OPENAI_API_KEY: 'test-openai-key',
+    RESEND_API_KEY: 'test-resend-key',
+    GOOGLE_CUSTOM_SEARCH_API_KEY: 'test-google-key',
+    GOOGLE_CUSTOM_SEARCH_ENGINE_ID: 'test-engine-id',
+    LANGCHAIN_API_KEY: 'test-langchain-key',
+    LANGCHAIN_TRACING_V2: 'true',
+    LANGCHAIN_PROJECT: 'test-project',
+    NEXT_PUBLIC_BASE_URL: 'http://localhost:3000',
+  });
 };
 
 // Async test helpers
