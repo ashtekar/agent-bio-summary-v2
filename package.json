@@ -14,7 +14,9 @@
     "test:unit": "jest --testPathIgnorePatterns=integration",
     "test:integration": "jest --testPathPattern=integration --testTimeout=30000",
     "test:integration:health": "jest --testPathPattern=integration --testNamePattern='Service Health'",
-    "test:integration:full": "jest --testPathPattern=integration --testNamePattern='External Services Integration'"
+    "test:integration:full": "jest --testPathPattern=integration --testNamePattern='External Services Integration'",
+    "cleanup:deployments": "node scripts/cleanup-deployments.js",
+    "cleanup:deployments:dry": "node scripts/cleanup-deployments.js --dry-run"
   },
   "dependencies": {
     "@langchain/core": "^0.1.23",
