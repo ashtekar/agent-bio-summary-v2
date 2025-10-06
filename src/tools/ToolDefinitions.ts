@@ -88,25 +88,26 @@ export const searchToolDefinitions: FunctionDefinition[] = [
 export const processingToolDefinitions: FunctionDefinition[] = [
   {
     name: 'scoreRelevancy',
-    description: 'Score articles for relevancy to synthetic biology using keyword analysis and source credibility',
+    description: 'Score articles for relevancy to synthetic biology using keyword analysis and source credibility. IMPORTANT: Process articles in batches of maximum 2 articles to avoid JSON parsing errors.',
     parameters: {
       type: 'object',
       properties: {
         articles: {
           type: 'array',
+          maxItems: 2,
           items: {
             type: 'object',
             properties: {
               id: { type: 'string' },
               title: { type: 'string' },
               url: { type: 'string' },
-              content: { type: 'string' },
+              content: { type: 'string', maxLength: 1000 },
               publishedDate: { type: 'string' },
               source: { type: 'string' },
               relevancyScore: { type: 'number' }
             }
           },
-          description: 'Array of articles to score for relevancy'
+          description: 'Array of articles to score for relevancy (maximum 2 articles per call)'
         }
       },
       required: ['articles']

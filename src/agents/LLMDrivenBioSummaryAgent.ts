@@ -109,14 +109,17 @@ export class LLMDrivenBioSummaryAgent {
         You have access to the following tools:
         - searchWeb: Search for articles using Google Custom Search
         - extractArticles: Extract full content from search result URLs
-        - scoreRelevancy: Score articles for relevancy to synthetic biology
+        - scoreRelevancy: Score articles for relevancy to synthetic biology (MAX 2 articles per call)
         - storeArticles: Store relevant articles in database (max 10)
         - summarizeArticle: Generate individual article summaries (100+ words each)
         - collateSummary: Combine summaries into HTML email format
         - sendEmail: Send final summary via email to recipients
         
-        IMPORTANT: When calling tools, keep your arguments concise and under 5000 characters total.
-        For articles with long content, truncate to the first 2000 characters to avoid JSON parsing errors.
+        CRITICAL JSON LIMITS:
+        - scoreRelevancy: Process maximum 2 articles per call to prevent JSON parsing errors
+        - All tool arguments must be under 3000 characters total
+        - Article content should be truncated to 1000 characters maximum
+        - If you have more than 2 articles, call scoreRelevancy multiple times with batches of 2
         
         Please use these tools in the appropriate sequence to complete the task.`
       }
@@ -222,31 +225,65 @@ export class LLMDrivenBioSummaryAgent {
           args = JSON.parse(toolCall.function.arguments);
         } catch (jsonError) {
           console.error(`JSON parsing failed for tool ${toolCall.function.name}:`, jsonError);
-          console.error(`Raw arguments:`, toolCall.function.arguments);
+          console.error(`Raw arguments length:`, toolCall.function.arguments.length);
+          console.error(`Raw arguments preview:`, toolCall.function.arguments.substring(0, 500) + '...');
           
-          // Try to fix common JSON issues
-          let fixedArgs = toolCall.function.arguments;
-          
-          // Handle unterminated strings by truncating at a reasonable length
-          if (fixedArgs.length > 10000) {
-            console.warn(`Arguments too long (${fixedArgs.length} chars), truncating to 10000 chars`);
-            fixedArgs = fixedArgs.substring(0, 10000);
+          // For scoreRelevancy tool, handle the specific case of oversized article content
+          if (toolCall.function.name === 'scoreRelevancy') {
+            console.log('Handling scoreRelevancy tool with oversized arguments');
             
-            // Try to find a good truncation point (end of a complete JSON object/array)
-            const lastBrace = fixedArgs.lastIndexOf('}');
-            const lastBracket = fixedArgs.lastIndexOf(']');
-            const truncateAt = Math.max(lastBrace, lastBracket);
-            
-            if (truncateAt > 5000) { // Only truncate if we can keep a reasonable amount
-              fixedArgs = fixedArgs.substring(0, truncateAt + 1);
+            // Try to extract articles from the malformed JSON and limit them
+            try {
+              const rawArgs = toolCall.function.arguments;
+              const articlesMatch = rawArgs.match(/"articles":\s*\[(.*?)\]/s);
+              
+              if (articlesMatch) {
+                // Limit to first 2 articles to prevent oversized JSON
+                const limitedArgs = rawArgs.replace(
+                  /"articles":\s*\[.*?\]/s,
+                  `"articles":[${articlesMatch[1].split('},{').slice(0, 2).join('},{')}]`
+                );
+                
+                console.log('Attempting to parse limited arguments');
+                args = JSON.parse(limitedArgs);
+                
+                // Further truncate article content if still too long
+                if (args.articles && Array.isArray(args.articles)) {
+                  args.articles = args.articles.map((article: any) => ({
+                    ...article,
+                    content: article.content ? article.content.substring(0, 1000) + '...' : article.content
+                  }));
+                }
+              } else {
+                throw new Error('Could not extract articles from malformed JSON');
+              }
+            } catch (fallbackError) {
+              console.error('Fallback parsing failed:', fallbackError);
+              throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
             }
-          }
-          
-          try {
-            args = JSON.parse(fixedArgs);
-          } catch (retryError) {
-            console.error(`Retry JSON parsing also failed:`, retryError);
-            throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
+          } else {
+            // For other tools, try the original truncation logic
+            let fixedArgs = toolCall.function.arguments;
+            
+            if (fixedArgs.length > 10000) {
+              console.warn(`Arguments too long (${fixedArgs.length} chars), truncating to 10000 chars`);
+              fixedArgs = fixedArgs.substring(0, 10000);
+              
+              const lastBrace = fixedArgs.lastIndexOf('}');
+              const lastBracket = fixedArgs.lastIndexOf(']');
+              const truncateAt = Math.max(lastBrace, lastBracket);
+              
+              if (truncateAt > 5000) {
+                fixedArgs = fixedArgs.substring(0, truncateAt + 1);
+              }
+            }
+            
+            try {
+              args = JSON.parse(fixedArgs);
+            } catch (retryError) {
+              console.error(`Retry JSON parsing also failed:`, retryError);
+              throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
+            }
           }
         }
         
