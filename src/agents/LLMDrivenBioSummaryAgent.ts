@@ -438,7 +438,16 @@ export class LLMDrivenBioSummaryAgent {
         } catch (error) {
           console.warn(`Failed to preprocess ${toolCall.function.name} tool call:`, error);
           // If preprocessing fails, create a minimal safe version
-          if (toolCall.function.name === 'extractArticles') {
+          if (toolCall.function.name === 'extractScoreAndStoreArticles') {
+            console.warn(`Creating minimal safe version for ${toolCall.function.name} (combined tool)`);
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: JSON.stringify({ searchResults: [] })
+              }
+            };
+          } else if (toolCall.function.name === 'extractArticles') {
             console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
             return {
               ...toolCall,

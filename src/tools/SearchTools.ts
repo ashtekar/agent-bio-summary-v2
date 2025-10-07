@@ -364,11 +364,13 @@ export class SearchTools {
         }));
 
         // Upsert articles into database (handle duplicates gracefully)
+        // Note: We use ignoreDuplicates:true to avoid "cannot affect row a second time" errors
+        // when the LLM processes overlapping batches of articles
         const { data, error } = await this.supabase
           .from('articles')
           .upsert(articlesToStore, { 
             onConflict: 'id',
-            ignoreDuplicates: false 
+            ignoreDuplicates: true // Skip duplicates instead of updating
           })
           .select();
 
