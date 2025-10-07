@@ -18,7 +18,7 @@ export class ProcessingTools {
   /**
    * Score articles for relevancy using existing algorithm
    */
-  async scoreRelevancy(articles: Article[]): Promise<ToolResult> {
+  async scoreRelevancy(articles: Article[], relevancyThreshold: number = 0.2): Promise<ToolResult> {
     try {
       console.log(`Scoring relevancy for ${articles.length} articles`);
       
@@ -30,8 +30,9 @@ export class ProcessingTools {
         };
       });
 
-      // Filter articles with relevancy score above threshold
-      const threshold = 0.3; // Lowered threshold to allow more articles through
+      // Filter articles with relevancy score above threshold (from system settings)
+      const threshold = relevancyThreshold;
+      console.log(`Using relevancy threshold: ${threshold} (from system settings)`);
       const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
       
       // Sort by relevancy score (highest first)

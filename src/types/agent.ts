@@ -37,6 +37,7 @@ export interface SystemSettings {
   llmModel: string;
   llmTemperature: number;
   llmMaxTokens: number;
+  relevancyThreshold?: number; // Optional threshold for article relevancy scoring (default: 0.2)
 }
 
 export interface EmailRecipient {

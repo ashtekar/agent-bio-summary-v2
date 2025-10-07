@@ -117,10 +117,13 @@ export class LLMDrivenBioSummaryAgent {
         - sendEmail: Send final summary via email to recipients (MUST include recipients from context above)
         
         RECOMMENDED WORKFLOW:
-        1. searchWeb → extractScoreAndStoreArticles (combined, efficient!)
-        2. summarizeArticle (batch of 2 articles at a time)
-        3. collateSummary
-        4. sendEmail
+        1. searchWeb → Get all search results
+        2. extractScoreAndStoreArticles → Process ALL search results at once (or in batches if >10 results)
+        3. summarizeArticle (batch of 2 articles at a time)
+        4. collateSummary
+        5. sendEmail
+        
+        IMPORTANT: Pass ALL search results to extractScoreAndStoreArticles in one call. It will handle extraction, scoring, and storage efficiently.
         
         CRITICAL JSON LIMITS:
         - summarizeArticle: Process maximum 2 articles per call to prevent JSON parsing errors
@@ -334,7 +337,7 @@ export class LLMDrivenBioSummaryAgent {
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
       // Handle tools that might have large article data
-      if (toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'sendEmail') {
+      if (toolCall.function.name === 'extractScoreAndStoreArticles' || toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'sendEmail') {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
@@ -351,6 +354,28 @@ export class LLMDrivenBioSummaryAgent {
           }
           
           const args = JSON.parse(argumentsStr);
+          
+          // Special handling for combined tool - allow ALL search results (no limit)
+          if (toolCall.function.name === 'extractScoreAndStoreArticles' && args.searchResults && Array.isArray(args.searchResults)) {
+            // Only truncate snippets for safety, but process ALL results
+            const processedResults = args.searchResults.map((result: any) => ({
+              ...result,
+              snippet: result.snippet ? result.snippet.substring(0, 300) : result.snippet
+            }));
+            
+            const processedArgs = { searchResults: processedResults };
+            const newArguments = JSON.stringify(processedArgs);
+            
+            console.log(`Preprocessed ${toolCall.function.name}: processing ${processedResults.length} search results, args length: ${newArguments.length}`);
+            
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: newArguments
+              }
+            };
+          }
           
           if (toolCall.function.name === 'extractArticles' && args.searchResults && Array.isArray(args.searchResults)) {
             // Limit to maximum 2 search results for extraction
@@ -518,7 +543,9 @@ export class LLMDrivenBioSummaryAgent {
 
       case 'extractScoreAndStoreArticles':
         console.log('[TOOL] Executing combined extractScoreAndStoreArticles');
-        const combinedResult = await this.searchTools.extractScoreAndStoreArticles(args.searchResults);
+        const relevancyThreshold = this.context.systemSettings.relevancyThreshold ?? 0.2;
+        console.log(`[TOOL] Using relevancy threshold from settings: ${relevancyThreshold}`);
+        const combinedResult = await this.searchTools.extractScoreAndStoreArticles(args.searchResults, relevancyThreshold);
         if (!combinedResult.success) {
           throw new Error(`Combined extract/score/store failed: ${combinedResult.error}`);
         }
@@ -538,7 +565,8 @@ export class LLMDrivenBioSummaryAgent {
         return extractResult.data;
 
       case 'scoreRelevancy':
-        const scoreResult = await this.processingTools.scoreRelevancy(args.articles);
+        const scoreThreshold = this.context.systemSettings.relevancyThreshold ?? 0.2;
+        const scoreResult = await this.processingTools.scoreRelevancy(args.articles, scoreThreshold);
         if (!scoreResult.success) {
           throw new Error(`Scoring failed: ${scoreResult.error}`);
         }

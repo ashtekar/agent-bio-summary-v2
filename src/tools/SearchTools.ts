@@ -258,7 +258,7 @@ export class SearchTools {
    * This optimized tool combines three operations into one to reduce LLM round-trips
    * Phase 2B optimization as per Design Spec Section 9
    */
-  async extractScoreAndStoreArticles(searchResults: any[]): Promise<ToolResult> {
+  async extractScoreAndStoreArticles(searchResults: any[], relevancyThreshold: number = 0.2): Promise<ToolResult> {
     const startTime = Date.now();
     
     try {
@@ -327,8 +327,9 @@ export class SearchTools {
         };
       });
 
-      // Filter by relevancy threshold
-      const threshold = 0.3;
+      // Filter by relevancy threshold (from system settings, default 0.2)
+      const threshold = relevancyThreshold;
+      console.log(`[PHASE 2: SCORING] Using relevancy threshold: ${threshold} (from system settings)`);
       const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
       
       // Sort by relevancy score (highest first)
