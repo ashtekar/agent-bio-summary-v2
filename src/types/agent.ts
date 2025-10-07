@@ -84,5 +84,6 @@ export interface ToolResult {
     executionTime: number;
     cost: number;
     tokens: number;
+    [key: string]: any; // Allow additional metadata fields for tool-specific data
   };
 }
