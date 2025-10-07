@@ -264,7 +264,7 @@ export class LLMDrivenBioSummaryAgent {
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
       // Handle tools that might have large article data
-      if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle') {
+      if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'sendEmail') {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
@@ -282,6 +282,23 @@ export class LLMDrivenBioSummaryAgent {
           }
           
           const args = JSON.parse(argumentsStr);
+          
+          if (toolCall.function.name === 'sendEmail' && args.summary) {
+            // Truncate HTML summary content for sendEmail
+            const truncatedSummary = this.smartTruncateContent(args.summary, 2000);
+            const limitedArgs = { ...args, summary: truncatedSummary };
+            const newArguments = JSON.stringify(limitedArgs);
+            
+            console.log(`Preprocessed ${toolCall.function.name}: truncated summary from ${args.summary.length} to ${truncatedSummary.length} chars, args length: ${newArguments.length}`);
+            
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: newArguments
+              }
+            };
+          }
           
           if (args.articles && Array.isArray(args.articles)) {
             // Limit to maximum 2 articles and smart truncate content
@@ -313,6 +330,19 @@ export class LLMDrivenBioSummaryAgent {
               function: {
                 ...toolCall.function,
                 arguments: JSON.stringify({ articles: [] })
+              }
+            };
+          } else if (toolCall.function.name === 'sendEmail') {
+            console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: JSON.stringify({ 
+                  summary: '<p>Summary content truncated due to size constraints.</p>',
+                  recipients: [],
+                  metadata: {}
+                })
               }
             };
           }
