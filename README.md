@@ -20,8 +20,6 @@ Agent Bio Summary V2 is an intelligent, agentic system that automatically genera
 
 ### **Advanced Capabilities**
 - **Langchain Integration**: Centralized prompt management and tracing
-- **Performance Monitoring**: Comprehensive logging and execution metrics
-- **Error Recovery**: Graceful handling of failures with retry mechanisms
 - **A/B Testing**: Built-in support for prompt experimentation and optimization
 
 ## 🏗️ Architecture
@@ -81,7 +79,7 @@ graph TB
 ### **Search & Discovery**
 - **`searchWeb`**: Intelligent web search using Google Custom Search API
 - **`extractArticles`**: Article extraction with time window and source filtering
-- **`scoreRelevancy`**: AI-powered relevance scoring for synthetic biology content
+- **`scoreRelevancy`**: Article filtering with relevance scoring for synthetic biology content
 
 ### **Processing & Storage**
 - **`storeArticles`**: Database storage with relevance threshold filtering (max 10 articles)

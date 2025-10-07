@@ -330,7 +330,7 @@ export class LLMDrivenBioSummaryAgent {
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
       // Handle tools that might have large article data
-      if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'sendEmail') {
+      if (toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'sendEmail') {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
@@ -347,6 +347,27 @@ export class LLMDrivenBioSummaryAgent {
           }
           
           const args = JSON.parse(argumentsStr);
+          
+          if (toolCall.function.name === 'extractArticles' && args.searchResults && Array.isArray(args.searchResults)) {
+            // Limit to maximum 2 search results for extraction
+            const limitedResults = args.searchResults.slice(0, 2).map((result: any) => ({
+              ...result,
+              snippet: result.snippet ? result.snippet.substring(0, 200) : result.snippet
+            }));
+            
+            const limitedArgs = { searchResults: limitedResults };
+            const newArguments = JSON.stringify(limitedArgs);
+            
+            console.log(`Preprocessed ${toolCall.function.name}: limited from ${args.searchResults.length} to ${limitedResults.length} results, args length: ${newArguments.length}`);
+            
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: newArguments
+              }
+            };
+          }
           
           if (toolCall.function.name === 'sendEmail' && args.summary) {
             // Truncate HTML summary content for sendEmail
@@ -388,7 +409,16 @@ export class LLMDrivenBioSummaryAgent {
         } catch (error) {
           console.warn(`Failed to preprocess ${toolCall.function.name} tool call:`, error);
           // If preprocessing fails, create a minimal safe version
-          if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle') {
+          if (toolCall.function.name === 'extractArticles') {
+            console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: JSON.stringify({ searchResults: [] })
+              }
+            };
+          } else if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle') {
             console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
             return {
               ...toolCall,
