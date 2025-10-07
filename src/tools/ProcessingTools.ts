@@ -73,7 +73,7 @@ export class ProcessingTools {
       const articlesToStore = articles.map(article => ({
         id: article.id,
         title: article.title || 'Untitled Article', // Ensure title is never null
-        url: article.url,
+        url: article.url || 'https://unknown-source.com', // Ensure url is never null
         content: article.content,
         published_date: article.publishedDate,
         source: article.source || 'unknown', // Ensure source is never null

@@ -90,7 +90,7 @@ export class EmailTools {
       }
       
       const { data, error } = await this.resend.emails.send({
-        from: 'Agent Bio Summary <noreply@agentbiosummary.com>',
+        from: 'Agent Bio Summary v2 <noreply@news.ashtekar.net>',
         to: [recipient.email],
         subject,
         html,
