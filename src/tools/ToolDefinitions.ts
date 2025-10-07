@@ -56,8 +56,33 @@ export const searchToolDefinitions: FunctionDefinition[] = [
     }
   },
   {
+    name: 'extractScoreAndStoreArticles',
+    description: 'OPTIMIZED COMBINED TOOL: Extract article content, score for relevancy, and store in database. This is the preferred tool that combines three operations (extract, score, store) into one efficient call to reduce latency and API costs. Use this instead of calling extractArticles, scoreRelevancy, and storeArticles separately.',
+    parameters: {
+      type: 'object',
+      properties: {
+        searchResults: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              title: { type: 'string' },
+              url: { type: 'string' },
+              snippet: { type: 'string' },
+              publishedDate: { type: 'string' },
+              source: { type: 'string' }
+            }
+          },
+          description: 'Array of search results to process (extract content, score relevancy, and store)'
+        }
+      },
+      required: ['searchResults']
+    }
+  },
+  {
     name: 'extractArticles',
-    description: 'Extract full content from search result URLs',
+    description: '[LEGACY] Extract full content from search result URLs. NOTE: Prefer using extractScoreAndStoreArticles for better performance.',
     parameters: {
       type: 'object',
       properties: {
@@ -276,6 +301,7 @@ export function getAllToolDefinitions(): FunctionDefinition[] {
  */
 export const TOOL_FUNCTION_MAP = {
   searchWeb: 'searchWeb',
+  extractScoreAndStoreArticles: 'extractScoreAndStoreArticles',
   extractArticles: 'extractArticles',
   scoreRelevancy: 'scoreRelevancy',
   storeArticles: 'storeArticles',

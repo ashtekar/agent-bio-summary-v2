@@ -1,8 +1,10 @@
 import { SearchSettings, Article, ToolResult } from '@/types/agent';
+import { createClient } from '@supabase/supabase-js';
 
 export class SearchTools {
   private googleApiKey: string;
   private searchEngineId: string;
+  private supabase;
 
   constructor() {
     this.googleApiKey = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY || '';
@@ -10,6 +12,16 @@ export class SearchTools {
     
     if (!this.googleApiKey || !this.searchEngineId) {
       console.warn('Google Custom Search API credentials not configured');
+    }
+
+    // Initialize Supabase client for combined tool
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('Supabase credentials not configured');
+    } else {
+      this.supabase = createClient(supabaseUrl, supabaseKey);
     }
   }
 
@@ -239,5 +251,243 @@ export class SearchTools {
       chunks.push(array.slice(i, i + chunkSize));
     }
     return chunks;
+  }
+
+  /**
+   * COMBINED TOOL: Extract, Score, and Store Articles
+   * This optimized tool combines three operations into one to reduce LLM round-trips
+   * Phase 2B optimization as per Design Spec Section 9
+   */
+  async extractScoreAndStoreArticles(searchResults: any[]): Promise<ToolResult> {
+    const startTime = Date.now();
+    
+    try {
+      console.log('='.repeat(80));
+      console.log('[COMBINED TOOL] Starting extractScoreAndStoreArticles');
+      console.log(`[COMBINED TOOL] Processing ${searchResults.length} search results`);
+      console.log('='.repeat(80));
+
+      // ============================================================
+      // PHASE 1: EXTRACTION
+      // ============================================================
+      console.log('\n[PHASE 1: EXTRACTION] Extracting article content...');
+      const extractionStartTime = Date.now();
+      
+      const articles: Article[] = [];
+      const concurrencyLimit = 5;
+      const chunks = this.chunkArray(searchResults, concurrencyLimit);
+      
+      for (const chunk of chunks) {
+        const promises = chunk.map(async (result) => {
+          try {
+            console.log(`[Extract] Processing: ${result.url}`);
+            const content = await this.extractArticleContent(result.url);
+            console.log(`[Extract] ✓ Extracted ${content.length} chars from ${result.title}`);
+            return {
+              ...result,
+              content,
+              relevancyScore: 0
+            } as Article;
+          } catch (error) {
+            console.warn(`[Extract] ✗ Failed to extract content from ${result.url}:`, error);
+            let fallbackContent = result.snippet || 'Content extraction failed';
+            if (error instanceof Error && error.message.includes('403')) {
+              fallbackContent = `[Access Restricted - Using Title/Snippet Only] ${result.snippet || result.title}`;
+            } else if (error instanceof Error && error.message.includes('404')) {
+              fallbackContent = `[Page Not Found - Using Title/Snippet Only] ${result.snippet || result.title}`;
+            }
+            return {
+              ...result,
+              content: fallbackContent,
+              relevancyScore: 0
+            } as Article;
+          }
+        });
+        
+        const chunkResults = await Promise.all(promises);
+        articles.push(...chunkResults);
+      }
+
+      const extractionTime = Date.now() - extractionStartTime;
+      console.log(`[PHASE 1: EXTRACTION] ✓ Completed in ${extractionTime}ms`);
+      console.log(`[PHASE 1: EXTRACTION] Successfully extracted ${articles.length} articles`);
+
+      // ============================================================
+      // PHASE 2: SCORING
+      // ============================================================
+      console.log('\n[PHASE 2: SCORING] Scoring articles for relevancy...');
+      const scoringStartTime = Date.now();
+      
+      const scoredArticles = articles.map(article => {
+        const score = this.calculateRelevancyScore(article);
+        console.log(`[Score] ${article.title}: ${score.toFixed(3)}`);
+        return {
+          ...article,
+          relevancyScore: score
+        };
+      });
+
+      // Filter by relevancy threshold
+      const threshold = 0.3;
+      const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
+      
+      // Sort by relevancy score (highest first)
+      relevantArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
+
+      const scoringTime = Date.now() - scoringStartTime;
+      console.log(`[PHASE 2: SCORING] ✓ Completed in ${scoringTime}ms`);
+      console.log(`[PHASE 2: SCORING] ${relevantArticles.length}/${scoredArticles.length} articles passed threshold (${threshold})`);
+
+      // ============================================================
+      // PHASE 3: STORAGE
+      // ============================================================
+      console.log('\n[PHASE 3: STORAGE] Storing relevant articles in database...');
+      const storageStartTime = Date.now();
+      
+      if (!this.supabase) {
+        console.warn('[PHASE 3: STORAGE] ⚠ Supabase client not initialized, skipping storage');
+      } else if (relevantArticles.length === 0) {
+        console.log('[PHASE 3: STORAGE] No relevant articles to store');
+      } else {
+        // Prepare articles for database insertion
+        const articlesToStore = relevantArticles.map(article => ({
+          id: article.id,
+          title: article.title || 'Untitled Article',
+          url: article.url || 'https://unknown-source.com',
+          content: article.content,
+          published_date: article.publishedDate,
+          source: article.source || 'unknown',
+          relevancy_score: article.relevancyScore || 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+        // Upsert articles into database (handle duplicates gracefully)
+        const { data, error } = await this.supabase
+          .from('articles')
+          .upsert(articlesToStore, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          })
+          .select();
+
+        if (error) {
+          console.warn(`[PHASE 3: STORAGE] ⚠ Database upsert failed: ${error.message}`);
+        } else {
+          console.log(`[PHASE 3: STORAGE] ✓ Successfully stored ${data.length} articles`);
+        }
+      }
+
+      const storageTime = Date.now() - storageStartTime;
+      const totalTime = Date.now() - startTime;
+
+      console.log(`[PHASE 3: STORAGE] ✓ Completed in ${storageTime}ms`);
+      
+      // ============================================================
+      // SUMMARY
+      // ============================================================
+      console.log('\n' + '='.repeat(80));
+      console.log('[COMBINED TOOL] Execution Summary:');
+      console.log(`  • Total Time: ${totalTime}ms`);
+      console.log(`  • Extraction: ${extractionTime}ms (${articles.length} articles)`);
+      console.log(`  • Scoring: ${scoringTime}ms (${relevantArticles.length}/${articles.length} relevant)`);
+      console.log(`  • Storage: ${storageTime}ms`);
+      console.log(`  • Final Result: ${relevantArticles.length} relevant articles ready for summarization`);
+      console.log('='.repeat(80));
+
+      return {
+        success: true,
+        data: relevantArticles,
+        metadata: {
+          executionTime: totalTime,
+          extractionTime,
+          scoringTime,
+          storageTime,
+          totalArticles: articles.length,
+          relevantArticles: relevantArticles.length,
+          threshold,
+          cost: 0,
+          tokens: 0
+        }
+      };
+
+    } catch (error) {
+      console.error('[COMBINED TOOL] ✗ Failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Extract, score, and store operation failed'
+      };
+    }
+  }
+
+  /**
+   * Calculate relevancy score for an article
+   * Implements the algorithmic scoring from ProcessingTools
+   */
+  private calculateRelevancyScore(article: Article): number {
+    let score = 0;
+    
+    // Keywords that indicate synthetic biology relevance
+    const syntheticBiologyKeywords = [
+      'synthetic biology', 'bioengineering', 'genetic engineering',
+      'biotechnology', 'biotech', 'molecular biology', 'cell biology', 'protein engineering',
+      'metabolic engineering', 'systems biology', 'synthetic genomics', 'biofabrication',
+      'biomanufacturing', 'biomaterials', 'biofuels', 'pharmaceuticals', 'drug discovery',
+      'therapeutic proteins', 'enzyme engineering', 'biocatalysis', 'fermentation',
+      'bioprocessing', 'bioreactors', 'cell culture', 'tissue engineering', 'regenerative medicine'
+    ];
+
+    const content = `${article.title} ${article.content}`.toLowerCase();
+    
+    // Check for keyword matches
+    let keywordMatches = 0;
+    syntheticBiologyKeywords.forEach(keyword => {
+      if (content.includes(keyword.toLowerCase())) {
+        keywordMatches++;
+      }
+    });
+    
+    // Base score from keyword matches
+    score += (keywordMatches / syntheticBiologyKeywords.length) * 0.4;
+    
+    // Title relevance (titles with keywords are more relevant)
+    const titleKeywords = syntheticBiologyKeywords.filter(keyword => 
+      article.title.toLowerCase().includes(keyword.toLowerCase())
+    );
+    score += (titleKeywords.length / syntheticBiologyKeywords.length) * 0.3;
+    
+    // Content length relevance (longer articles might be more comprehensive)
+    const contentLength = article.content.length;
+    if (contentLength > 1000) {
+      score += 0.1;
+    }
+    if (contentLength > 5000) {
+      score += 0.1;
+    }
+    
+    // Source credibility (some sources are more reliable)
+    const credibleSources = ['nature.com', 'science.org', 'cell.com', 'pnas.org', 'biorxiv.org'];
+    const isFromCredibleSource = credibleSources.some(source => 
+      article.url.toLowerCase().includes(source)
+    );
+    if (isFromCredibleSource) {
+      score += 0.1;
+    }
+    
+    // Recency bonus (newer articles get slight bonus)
+    try {
+      const publishedDate = new Date(article.publishedDate);
+      if (!isNaN(publishedDate.getTime())) {
+        const daysSincePublished = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSincePublished < 30) {
+          score += 0.05;
+        }
+      }
+    } catch (error) {
+      // Skip recency bonus if date parsing fails
+    }
+    
+    // Ensure score is between 0 and 1
+    return Math.min(Math.max(score, 0), 1);
   }
 }

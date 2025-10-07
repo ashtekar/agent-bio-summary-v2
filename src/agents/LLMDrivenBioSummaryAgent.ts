@@ -108,20 +108,24 @@ export class LLMDrivenBioSummaryAgent {
         
         You have access to the following tools:
         - searchWeb: Search for articles using Google Custom Search
-        - extractArticles: Extract full content from search result URLs
-        - scoreRelevancy: Score articles for relevancy to synthetic biology (MAX 2 articles per call)
-        - storeArticles: Store relevant articles in database (MAX 2 articles per call)
+        - extractScoreAndStoreArticles: **[OPTIMIZED - USE THIS]** Extract content, score relevancy, and store articles in ONE efficient call
+        - extractArticles: [LEGACY] Extract full content from search result URLs
+        - scoreRelevancy: [LEGACY] Score articles for relevancy to synthetic biology
+        - storeArticles: [LEGACY] Store relevant articles in database
         - summarizeArticle: Generate individual article summaries (MAX 2 articles per call)
         - collateSummary: Combine summaries into HTML email format
         - sendEmail: Send final summary via email to recipients (MUST include recipients from context above)
         
+        RECOMMENDED WORKFLOW:
+        1. searchWeb → extractScoreAndStoreArticles (combined, efficient!)
+        2. summarizeArticle (batch of 2 articles at a time)
+        3. collateSummary
+        4. sendEmail
+        
         CRITICAL JSON LIMITS:
-        - scoreRelevancy: Process maximum 2 articles per call to prevent JSON parsing errors
-        - storeArticles: Process maximum 2 articles per call to prevent JSON parsing errors
         - summarizeArticle: Process maximum 2 articles per call to prevent JSON parsing errors
-        - All tool arguments must be under 3000 characters total
-        - Article content should be truncated to 1000 characters maximum
-        - If you have more than 2 articles, call these tools multiple times with batches of 2
+        - All tool arguments must be under 6000 characters total
+        - If you have more than 2 articles for summarization, call summarizeArticle multiple times with batches of 2
         
         Please use these tools in the appropriate sequence to complete the task.`
       }
@@ -512,6 +516,20 @@ export class LLMDrivenBioSummaryAgent {
         }
         return searchResult.data;
 
+      case 'extractScoreAndStoreArticles':
+        console.log('[TOOL] Executing combined extractScoreAndStoreArticles');
+        const combinedResult = await this.searchTools.extractScoreAndStoreArticles(args.searchResults);
+        if (!combinedResult.success) {
+          throw new Error(`Combined extract/score/store failed: ${combinedResult.error}`);
+        }
+        // Update context with all three phases
+        this.context.foundArticles = combinedResult.data;
+        this.context.filteredArticles = combinedResult.data;
+        this.context.storedArticles = combinedResult.data;
+        this.context.lastSuccessfulStep = 'processing';
+        console.log(`[TOOL] Combined tool completed: ${combinedResult.data.length} relevant articles`);
+        return combinedResult.data;
+
       case 'extractArticles':
         const extractResult = await this.searchTools.extractArticles(args.searchResults);
         if (!extractResult.success) {
@@ -569,6 +587,15 @@ export class LLMDrivenBioSummaryAgent {
         this.context.lastSuccessfulStep = 'search';
         break;
         
+      case 'extractScoreAndStoreArticles':
+        // Combined tool updates all three context fields at once
+        this.context.foundArticles = result;
+        this.context.filteredArticles = result;
+        this.context.storedArticles = result;
+        this.context.lastSuccessfulStep = 'processing';
+        console.log(`[Context] Updated after combined tool: ${result.length} articles extracted, scored, and stored`);
+        break;
+
       case 'extractArticles':
         this.context.foundArticles = result;
         this.context.lastSuccessfulStep = 'search';
@@ -635,12 +662,15 @@ export class LLMDrivenBioSummaryAgent {
     return `You are an expert AI agent for generating daily synthetic biology summaries. Your task is to:
 
 1. Search for recent synthetic biology articles using web search
-2. Extract and analyze article content
-3. Score articles for relevancy to synthetic biology
-4. Store the most relevant articles (maximum 10)
-5. Generate comprehensive summaries (minimum 100 words each)
-6. Collate summaries into a cohesive HTML email newsletter
-7. Send the final summary to specified email recipients
+2. **Use extractScoreAndStoreArticles to efficiently extract, score, and store articles in ONE step** (PREFERRED - saves time and cost)
+3. Generate comprehensive summaries (minimum 100 words each)
+4. Collate summaries into a cohesive HTML email newsletter
+5. Send the final summary to specified email recipients
+
+TOOL OPTIMIZATION GUIDANCE:
+- **PREFERRED**: Use 'extractScoreAndStoreArticles' after searchWeb - it combines extract + score + store in ONE efficient call
+- **LEGACY**: You can still use separate 'extractArticles', 'scoreRelevancy', 'storeArticles' if needed for debugging
+- The combined tool is 3x faster and uses fewer API calls - use it whenever possible!
 
 You must use the available tools in the appropriate sequence. Be thorough and ensure high quality throughout the process.
 
