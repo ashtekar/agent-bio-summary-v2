@@ -368,7 +368,23 @@ export class LLMDrivenBioSummaryAgent {
             const truncateAt = this.findBestJsonTruncationPoint(argumentsStr);
             if (truncateAt > 500) { // Lowered threshold - any reasonable truncation point is acceptable
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
-              console.log(`JSON boundary detection: truncated to ${truncateAt + 1} chars at safe boundary`);
+              
+              // Ensure we close the JSON properly
+              // If we have an open array or object, close it
+              const openBraces = (argumentsStr.match(/\{/g) || []).length;
+              const closeBraces = (argumentsStr.match(/\}/g) || []).length;
+              const openBrackets = (argumentsStr.match(/\[/g) || []).length;
+              const closeBrackets = (argumentsStr.match(/\]/g) || []).length;
+              
+              // Add missing closing brackets/braces
+              for (let i = 0; i < (openBrackets - closeBrackets); i++) {
+                argumentsStr += ']';
+              }
+              for (let i = 0; i < (openBraces - closeBraces); i++) {
+                argumentsStr += '}';
+              }
+              
+              console.log(`JSON boundary detection: truncated to ${truncateAt + 1} chars, added ${(openBrackets - closeBrackets)} ] and ${(openBraces - closeBraces)} } to close JSON`);
             } else {
               // No good boundary found, fallback to empty
               console.warn(`No safe JSON boundary found, using fallback`);
