@@ -369,6 +369,10 @@ export class LLMDrivenBioSummaryAgent {
             if (truncateAt > 500) { // Lowered threshold - any reasonable truncation point is acceptable
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
               
+              // Remove trailing commas that would make JSON invalid
+              // e.g., {"items":[{...},]} -> {"items":[{...}]}
+              argumentsStr = argumentsStr.replace(/,(\s*)([\]}])/g, '$1$2');
+              
               // Ensure we close the JSON properly
               // If we have an open array or object, close it
               const openBraces = (argumentsStr.match(/\{/g) || []).length;
