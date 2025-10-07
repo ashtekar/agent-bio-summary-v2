@@ -215,6 +215,72 @@ export class LLMDrivenBioSummaryAgent {
   }
 
   /**
+   * Find the best JSON truncation point to avoid breaking JSON structure
+   */
+  private findBestJsonTruncationPoint(jsonStr: string): number {
+    // Look for safe truncation points in order of preference
+    interface SafePoint {
+      index: number;
+      type: string;
+      priority: number;
+    }
+    const safePoints: SafePoint[] = [];
+    
+    // 1. Look for complete JSON objects/arrays (most preferred)
+    const objectMatches = [...jsonStr.matchAll(/\}[^}]*$/g)];
+    const arrayMatches = [...jsonStr.matchAll(/\]/g)];
+    
+    // 2. Look for string boundaries (less preferred but safe)
+    const stringMatches = [...jsonStr.matchAll(/"[^"]*"$/g)];
+    
+    // 3. Look for comma boundaries (least preferred but workable)
+    const commaMatches = [...jsonStr.matchAll(/,[^,]*$/g)];
+    
+    // Collect all potential truncation points
+    objectMatches.forEach(match => {
+      if (match.index !== undefined) {
+        safePoints.push({ index: match.index + 1, type: 'object', priority: 1 });
+      }
+    });
+    
+    arrayMatches.forEach(match => {
+      if (match.index !== undefined) {
+        safePoints.push({ index: match.index + 1, type: 'array', priority: 1 });
+      }
+    });
+    
+    stringMatches.forEach(match => {
+      if (match.index !== undefined && match[0]) {
+        safePoints.push({ index: match.index + match[0].length, type: 'string', priority: 2 });
+      }
+    });
+    
+    commaMatches.forEach(match => {
+      if (match.index !== undefined) {
+        safePoints.push({ index: match.index, type: 'comma', priority: 3 });
+      }
+    });
+    
+    // Sort by priority (lower number = higher priority) and position
+    safePoints.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      return b.index - a.index; // Prefer later positions
+    });
+    
+    // Return the best truncation point, or fallback to simple brace/bracket detection
+    if (safePoints.length > 0) {
+      return safePoints[0].index;
+    }
+    
+    // Fallback to simple detection
+    const lastBrace = jsonStr.lastIndexOf('}');
+    const lastBracket = jsonStr.lastIndexOf(']');
+    return Math.max(lastBrace, lastBracket);
+  }
+
+  /**
    * Smart truncate content to preserve important keywords for relevancy scoring
    */
   private smartTruncateContent(content: string, maxLength: number): string {
@@ -268,16 +334,15 @@ export class LLMDrivenBioSummaryAgent {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
-          if (argumentsStr.length > 2000) {
-            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 2000 chars`);
-            argumentsStr = argumentsStr.substring(0, 2000);
+          if (argumentsStr.length > 4000) {
+            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 4000 chars`);
+            argumentsStr = argumentsStr.substring(0, 4000);
             
-            // Try to find a good truncation point within JSON structure
-            const lastBrace = argumentsStr.lastIndexOf('}');
-            const lastBracket = argumentsStr.lastIndexOf(']');
-            const truncateAt = Math.max(lastBrace, lastBracket);
-            if (truncateAt > 1000) {
+            // Improved JSON boundary detection
+            const truncateAt = this.findBestJsonTruncationPoint(argumentsStr);
+            if (truncateAt > 2000) {
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
+              console.log(`JSON boundary detection: truncated to ${truncateAt + 1} chars at safe boundary`);
             }
           }
           
@@ -285,7 +350,7 @@ export class LLMDrivenBioSummaryAgent {
           
           if (toolCall.function.name === 'sendEmail' && args.summary) {
             // Truncate HTML summary content for sendEmail
-            const truncatedSummary = this.smartTruncateContent(args.summary, 1000);
+            const truncatedSummary = this.smartTruncateContent(args.summary, 2000);
             const limitedArgs = { ...args, summary: truncatedSummary };
             const newArguments = JSON.stringify(limitedArgs);
             
@@ -304,7 +369,7 @@ export class LLMDrivenBioSummaryAgent {
             // Limit to maximum 2 articles and smart truncate content
             const limitedArticles = args.articles.slice(0, 2).map((article: any) => ({
               ...article,
-              content: article.content ? this.smartTruncateContent(article.content, 600) : article.content
+              content: article.content ? this.smartTruncateContent(article.content, 1500) : article.content
             }));
             
             const limitedArgs = { articles: limitedArticles };
