@@ -341,15 +341,38 @@ export class LLMDrivenBioSummaryAgent {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
-          if (argumentsStr.length > 6000) {
-            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 6000 chars`);
-            argumentsStr = argumentsStr.substring(0, 6000);
+          
+          // Check if JSON is already invalid (e.g., truncated by OpenAI before we received it)
+          // This happens when LLM generates > max tokens and OpenAI cuts it off mid-string
+          let needsBoundaryFix = false;
+          try {
+            JSON.parse(argumentsStr);
+          } catch (parseError) {
+            if (parseError instanceof SyntaxError && parseError.message.includes('Unterminated string')) {
+              console.warn(`Received truncated JSON from LLM (${argumentsStr.length} chars), attempting repair...`);
+              needsBoundaryFix = true;
+            } else {
+              // Some other JSON error, re-throw it
+              throw parseError;
+            }
+          }
+          
+          // Apply boundary fix if needed OR if arguments are too long
+          if (needsBoundaryFix || argumentsStr.length > 6000) {
+            if (argumentsStr.length > 6000) {
+              console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 6000 chars`);
+              argumentsStr = argumentsStr.substring(0, 6000);
+            }
             
-            // Improved JSON boundary detection
+            // Always apply JSON boundary detection when we need to fix truncation
             const truncateAt = this.findBestJsonTruncationPoint(argumentsStr);
-            if (truncateAt > 3000) {
+            if (truncateAt > 500) { // Lowered threshold - any reasonable truncation point is acceptable
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
               console.log(`JSON boundary detection: truncated to ${truncateAt + 1} chars at safe boundary`);
+            } else {
+              // No good boundary found, fallback to empty
+              console.warn(`No safe JSON boundary found, using fallback`);
+              throw new Error('No safe JSON truncation point found');
             }
           }
           
