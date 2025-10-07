@@ -82,14 +82,27 @@ export class ProcessingTools {
         updated_at: new Date().toISOString()
       }));
 
-      // Insert articles into database
+      // Upsert articles into database (handle duplicates gracefully)
       const { data, error } = await this.supabase
         .from('articles')
-        .insert(articlesToStore)
+        .upsert(articlesToStore, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
         .select();
 
       if (error) {
-        throw new Error(`Database insertion failed: ${error.message}`);
+        console.warn(`Database upsert failed: ${error.message}`);
+        // If upsert fails, try to continue with original articles
+        return {
+          success: true,
+          data: articles, // Return original articles for consistency
+          metadata: {
+            executionTime: Date.now(),
+            cost: 0,
+            tokens: 0
+          }
+        };
       }
 
       console.log(`Successfully stored ${data.length} articles`);

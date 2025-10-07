@@ -91,7 +91,7 @@ export class LLMDrivenBioSummaryAgent {
   private async executeWithLLM(): Promise<ToolResult> {
     // Set up timeout to prevent infinite execution
     const startTime = Date.now();
-    const maxExecutionTime = 100 * 1000; // 100 seconds (leave 20 seconds buffer for Vercel's 120s limit)
+    const maxExecutionTime = 110 * 1000; // 110 seconds (leave 10 seconds buffer for Vercel's 120s limit)
     
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
