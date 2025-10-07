@@ -268,15 +268,15 @@ export class LLMDrivenBioSummaryAgent {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
-          if (argumentsStr.length > 3000) {
-            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 3000 chars`);
-            argumentsStr = argumentsStr.substring(0, 3000);
+          if (argumentsStr.length > 2500) {
+            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 2500 chars`);
+            argumentsStr = argumentsStr.substring(0, 2500);
             
             // Try to find a good truncation point within JSON structure
             const lastBrace = argumentsStr.lastIndexOf('}');
             const lastBracket = argumentsStr.lastIndexOf(']');
             const truncateAt = Math.max(lastBrace, lastBracket);
-            if (truncateAt > 2000) {
+            if (truncateAt > 1500) {
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
             }
           }
@@ -285,7 +285,7 @@ export class LLMDrivenBioSummaryAgent {
           
           if (toolCall.function.name === 'sendEmail' && args.summary) {
             // Truncate HTML summary content for sendEmail
-            const truncatedSummary = this.smartTruncateContent(args.summary, 2000);
+            const truncatedSummary = this.smartTruncateContent(args.summary, 1500);
             const limitedArgs = { ...args, summary: truncatedSummary };
             const newArguments = JSON.stringify(limitedArgs);
             
@@ -334,14 +334,24 @@ export class LLMDrivenBioSummaryAgent {
             };
           } else if (toolCall.function.name === 'sendEmail') {
             console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
+            // Try to extract recipients from the original arguments
+            let recipients = [];
+            try {
+              const originalArgs = JSON.parse(toolCall.function.arguments.substring(0, 1000));
+              if (originalArgs.recipients && Array.isArray(originalArgs.recipients)) {
+                recipients = originalArgs.recipients;
+              }
+            } catch (e) {
+              // If we can't parse, use empty array
+            }
             return {
               ...toolCall,
               function: {
                 ...toolCall.function,
                 arguments: JSON.stringify({ 
                   summary: '<p>Summary content truncated due to size constraints.</p>',
-                  recipients: [],
-                  metadata: {}
+                  recipients: recipients,
+                  metadata: { sessionId: 'unknown', articlesCount: 0, executionTime: 0 }
                 })
               }
             };
