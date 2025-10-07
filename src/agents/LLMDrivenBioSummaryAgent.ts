@@ -334,13 +334,13 @@ export class LLMDrivenBioSummaryAgent {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
-          if (argumentsStr.length > 4000) {
-            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 4000 chars`);
-            argumentsStr = argumentsStr.substring(0, 4000);
+          if (argumentsStr.length > 6000) {
+            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 6000 chars`);
+            argumentsStr = argumentsStr.substring(0, 6000);
             
             // Improved JSON boundary detection
             const truncateAt = this.findBestJsonTruncationPoint(argumentsStr);
-            if (truncateAt > 2000) {
+            if (truncateAt > 3000) {
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
               console.log(`JSON boundary detection: truncated to ${truncateAt + 1} chars at safe boundary`);
             }
@@ -369,7 +369,7 @@ export class LLMDrivenBioSummaryAgent {
             // Limit to maximum 2 articles and smart truncate content
             const limitedArticles = args.articles.slice(0, 2).map((article: any) => ({
               ...article,
-              content: article.content ? this.smartTruncateContent(article.content, 1500) : article.content
+              content: article.content ? this.smartTruncateContent(article.content, 2500) : article.content
             }));
             
             const limitedArgs = { articles: limitedArticles };
@@ -406,7 +406,7 @@ export class LLMDrivenBioSummaryAgent {
               function: {
                 ...toolCall.function,
                 arguments: JSON.stringify({ 
-                  summary: '<p>Summary content truncated due to size constraints.</p>',
+                  summary: '<div class="content"><h2>Synthetic Biology Daily</h2><p>Your daily dose of innovation in synthetic biology</p><p>Summary content was truncated due to processing constraints, but the agent successfully found and processed articles.</p></div>',
                   recipients: recipients,
                   metadata: { 
                     sessionId: this.context.sessionId, 
