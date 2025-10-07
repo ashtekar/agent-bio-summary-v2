@@ -194,3 +194,4 @@ chmod +x scripts/cleanup-deployments.sh
 - Production deployments are protected
 - Preview deployments are cleaned up based on age
 - Failed deletions are logged but don't stop the process
+

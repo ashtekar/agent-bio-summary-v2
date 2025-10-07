@@ -91,7 +91,7 @@ export class LLMDrivenBioSummaryAgent {
   private async executeWithLLM(): Promise<ToolResult> {
     // Set up timeout to prevent infinite execution
     const startTime = Date.now();
-    const maxExecutionTime = 110 * 1000; // 110 seconds (leave 10 seconds buffer for Vercel's 120s limit)
+    const maxExecutionTime = 170 * 1000; // 170 seconds (leave 10 seconds buffer for Vercel's 180s limit)
     
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
@@ -266,13 +266,28 @@ export class LLMDrivenBioSummaryAgent {
       // Handle tools that might have large article data
       if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle') {
         try {
-          const args = JSON.parse(toolCall.function.arguments);
+          // First, check if arguments are too long and truncate if needed
+          let argumentsStr = toolCall.function.arguments;
+          if (argumentsStr.length > 3000) {
+            console.warn(`Arguments too long (${argumentsStr.length} chars), truncating to 3000 chars`);
+            argumentsStr = argumentsStr.substring(0, 3000);
+            
+            // Try to find a good truncation point within JSON structure
+            const lastBrace = argumentsStr.lastIndexOf('}');
+            const lastBracket = argumentsStr.lastIndexOf(']');
+            const truncateAt = Math.max(lastBrace, lastBracket);
+            if (truncateAt > 2000) {
+              argumentsStr = argumentsStr.substring(0, truncateAt + 1);
+            }
+          }
+          
+          const args = JSON.parse(argumentsStr);
           
           if (args.articles && Array.isArray(args.articles)) {
             // Limit to maximum 2 articles and smart truncate content
             const limitedArticles = args.articles.slice(0, 2).map((article: any) => ({
               ...article,
-              content: article.content ? this.smartTruncateContent(article.content, 800) : article.content
+              content: article.content ? this.smartTruncateContent(article.content, 600) : article.content
             }));
             
             const limitedArgs = { articles: limitedArticles };
@@ -290,6 +305,17 @@ export class LLMDrivenBioSummaryAgent {
           }
         } catch (error) {
           console.warn(`Failed to preprocess ${toolCall.function.name} tool call:`, error);
+          // If preprocessing fails, create a minimal safe version
+          if (toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle') {
+            console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: JSON.stringify({ articles: [] })
+              }
+            };
+          }
         }
       }
       

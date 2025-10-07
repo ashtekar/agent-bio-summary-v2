@@ -31,7 +31,7 @@ export class ProcessingTools {
       });
 
       // Filter articles with relevancy score above threshold
-      const threshold = 0.6; // Adjust based on your requirements
+      const threshold = 0.3; // Lowered threshold to allow more articles through
       const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
       
       // Sort by relevancy score (highest first)

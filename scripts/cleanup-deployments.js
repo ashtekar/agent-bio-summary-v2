@@ -169,13 +169,24 @@ async function cleanupDeployments() {
   console.log(`🏭 Production deployments: ${productionDeployments.length}`);
   console.log(`👀 Preview deployments: ${previewDeployments.length}`);
   
-  // Keep the latest production deployment
-  const productionToKeep = productionDeployments.slice(0, 1);
-  const productionToDelete = productionDeployments.slice(1);
+  // Filter by status - only delete failed/error deployments
+  const activeProduction = productionDeployments.filter(d => d.status === 'Ready' || d.status === 'Building');
+  const failedProduction = productionDeployments.filter(d => d.status === 'Error' || d.status === 'Failed');
+  const activePreview = previewDeployments.filter(d => d.status === 'Ready' || d.status === 'Building');
+  const failedPreview = previewDeployments.filter(d => d.status === 'Error' || d.status === 'Failed');
   
-  // Keep the most recent preview deployments
-  const previewToKeep = previewDeployments.slice(0, keepCount - 1);
-  const previewToDelete = previewDeployments.slice(keepCount - 1);
+  console.log(`📊 Status Summary:`);
+  console.log(`   ✅ Active Production: ${activeProduction.length}`);
+  console.log(`   ❌ Failed Production: ${failedProduction.length}`);
+  console.log(`   ✅ Active Preview: ${activePreview.length}`);
+  console.log(`   ❌ Failed Preview: ${failedPreview.length}`);
+  
+  // Keep all active deployments, only delete failed ones
+  const productionToKeep = activeProduction;
+  const productionToDelete = failedProduction;
+  
+  const previewToKeep = activePreview;
+  const previewToDelete = failedPreview.slice(0, Math.max(0, failedPreview.length - (keepCount - 1)));
   
   const totalToDelete = productionToDelete.length + previewToDelete.length;
   

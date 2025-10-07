@@ -1,8 +1,8 @@
 {
   "functions": {
-    "src/app/api/**/*.ts": {
-      "maxDuration": 120
-    }
+      "src/app/api/**/*.ts": {
+        "maxDuration": 180
+      }
   },
   "env": {
     "LOG_LEVEL": "3"

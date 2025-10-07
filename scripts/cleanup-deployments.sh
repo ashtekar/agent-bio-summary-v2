@@ -96,8 +96,11 @@ echo "📊 Found $TOTAL_DEPLOYMENTS deployments"
 
 # Get only failed deployments (Error status)
 echo "🔍 Analyzing deployment statuses..."
-FAILED_DEPLOYMENTS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | grep "Error" | wc -l || echo "0")
-SUCCESSFUL_DEPLOYMENTS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | grep "Ready" | wc -l || echo "0")
+# Filter out header lines and get only deployment data lines
+DEPLOYMENT_LINES=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://")
+# Use regex to match status patterns
+FAILED_DEPLOYMENTS=$(echo "$DEPLOYMENT_LINES" | grep -c "Error" || echo "0")
+SUCCESSFUL_DEPLOYMENTS=$(echo "$DEPLOYMENT_LINES" | grep -c "Ready" || echo "0")
 
 echo "📊 Deployment Status Summary:"
 echo "   ✅ Successful (Ready): $SUCCESSFUL_DEPLOYMENTS"
@@ -110,7 +113,7 @@ if [ "$FAILED_DEPLOYMENTS" -eq 0 ]; then
 fi
 
 # Get failed deployment URLs
-FAILED_URLS=$(echo "$DEPLOYMENTS_OUTPUT" | grep "https://" | grep "Error" | awk '{print $1}')
+FAILED_URLS=$(echo "$DEPLOYMENT_LINES" | grep "Error" | awk '{print $1}')
 
 echo "🗑️  Failed deployments to delete: $FAILED_DEPLOYMENTS"
 

@@ -105,9 +105,16 @@ export class SearchTools {
             } as Article;
           } catch (error) {
             console.warn(`Failed to extract content from ${result.url}:`, error);
+            // Provide more descriptive content for different error types
+            let fallbackContent = result.snippet || 'Content extraction failed';
+            if (error instanceof Error && error.message.includes('403')) {
+              fallbackContent = `[Access Restricted - Using Title/Snippet Only] ${result.snippet || result.title}`;
+            } else if (error instanceof Error && error.message.includes('404')) {
+              fallbackContent = `[Page Not Found - Using Title/Snippet Only] ${result.snippet || result.title}`;
+            }
             return {
               ...result,
-              content: result.snippet || 'Content extraction failed',
+              content: fallbackContent,
               relevancyScore: 0
             } as Article;
           }
