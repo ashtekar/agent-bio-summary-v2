@@ -1,8 +1,10 @@
 import { EmailRecipient, ToolResult } from '@/types/agent';
 import { Resend } from 'resend';
+import { tracingWrapper } from '@/lib/tracing';
 
 export class EmailTools {
   private resend: Resend | null = null;
+  private tracing = tracingWrapper;
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
@@ -25,59 +27,67 @@ export class EmailTools {
       executionTime: number;
     };
   }): Promise<ToolResult> {
-    try {
-      console.log(`Sending email to ${params.recipients.length} recipients`);
-      
-      if (!this.resend) {
-        throw new Error('Resend client not initialized');
-      }
-
-      if (params.recipients.length === 0) {
-        throw new Error('No recipients specified');
-      }
-
-      const emailHtml = this.generateEmailHtml(params.summary, params.metadata);
-      const emailSubject = this.generateEmailSubject(params.metadata);
-      
-      // Send to all recipients
-      const emailPromises = params.recipients.map(recipient => 
-        this.sendToRecipient(recipient, emailSubject, emailHtml)
-      );
-
-      const results = await Promise.allSettled(emailPromises);
-      
-      // Check results
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      
-      if (failed > 0) {
-        console.warn(`${failed} emails failed to send out of ${params.recipients.length}`);
-      }
-
-      console.log(`Successfully sent ${successful} emails`);
-      
-      return {
-        success: successful > 0,
-        data: {
-          successful,
-          failed,
-          recipients: params.recipients.length,
-          emailId: this.generateEmailId(params.metadata.sessionId)
-        },
-        metadata: {
-          executionTime: Date.now(),
-          cost: this.calculateEmailCost(params.recipients.length),
-          tokens: 0
+    return this.tracing.traceToolExecution(
+      'sendEmail',
+      async () => {
+        console.log(`Sending email to ${params.recipients.length} recipients`);
+        
+        if (!this.resend) {
+          throw new Error('Resend client not initialized');
         }
-      };
 
-    } catch (error) {
+        if (params.recipients.length === 0) {
+          throw new Error('No recipients specified');
+        }
+
+        const emailHtml = this.generateEmailHtml(params.summary, params.metadata);
+        const emailSubject = this.generateEmailSubject(params.metadata);
+        
+        // Send to all recipients
+        const emailPromises = params.recipients.map(recipient => 
+          this.sendToRecipient(recipient, emailSubject, emailHtml)
+        );
+
+        const results = await Promise.allSettled(emailPromises);
+        
+        // Check results
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        if (failed > 0) {
+          console.warn(`${failed} emails failed to send out of ${params.recipients.length}`);
+        }
+
+        console.log(`Successfully sent ${successful} emails`);
+        
+        return {
+          success: successful > 0,
+          data: {
+            successful,
+            failed,
+            recipients: params.recipients.length,
+            emailId: this.generateEmailId(params.metadata.sessionId)
+          },
+          metadata: {
+            executionTime: Date.now(),
+            cost: this.calculateEmailCost(params.recipients.length),
+            tokens: 0
+          }
+        };
+      },
+      {
+        recipientCount: params.recipients.length,
+        sessionId: params.metadata.sessionId,
+        articlesCount: params.metadata.articlesCount,
+        summaryLength: params.summary.length
+      }
+    ).catch(error => {
       console.error('Email sending failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Email sending failed'
       };
-    }
+    });
   }
 
   /**

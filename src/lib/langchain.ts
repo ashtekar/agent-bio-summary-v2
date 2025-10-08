@@ -1,9 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { PromptTemplate } from '@langchain/core/prompts';
+import { Client } from 'langsmith';
 
 export class LangchainIntegration {
-  private client: any; // Simplified for now
-  private tracer: any; // Simplified for now
+  private client: Client | null;
   private chatModel: ChatOpenAI;
   private prompts: Map<string, PromptTemplate>;
 
@@ -16,13 +16,23 @@ export class LangchainIntegration {
     const project = process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2';
     const tracingEnabled = process.env.LANGCHAIN_TRACING_V2 === 'true';
 
-    if (!apiKey) {
-      console.warn('Langchain API key not configured');
+    // Initialize LangSmith client for annotations and custom tracking
+    if (apiKey && tracingEnabled) {
+      try {
+        const workspaceId = process.env.LANGSMITH_WORKSPACE_ID;
+        this.client = new Client({
+          apiKey,
+          ...(workspaceId && { workspaceId })
+        });
+        console.log(`✅ LangSmith client initialized for project: ${project}`);
+      } catch (error) {
+        console.warn('⚠️ Failed to initialize LangSmith client:', error);
+        this.client = null;
+      }
+    } else {
+      console.warn('LangSmith tracing disabled (missing API key or LANGCHAIN_TRACING_V2=false)');
+      this.client = null;
     }
-
-    // Initialize Langchain client (simplified for now)
-    this.client = null; // Will be implemented later
-    this.tracer = null; // Will be implemented later
 
     // Initialize OpenAI chat model with configurable settings
     this.chatModel = new ChatOpenAI({
@@ -135,7 +145,7 @@ Provide specific feedback and an overall score.`,
     title: string;
     url: string;
     content: string;
-  }): Promise<{ summary: string; tokens: number; cost: number }> {
+  }): Promise<{ summary: string; tokens: number; cost: number; runId?: string }> {
     const prompt = this.getPrompt('summarization');
     if (!prompt) {
       throw new Error('Summarization prompt not found');
@@ -144,9 +154,18 @@ Provide specific feedback and an overall score.`,
     const chain = prompt.pipe(this.chatModel);
     
     try {
+      // Capture run ID from callback
+      let capturedRunId: string | undefined;
+      const callbackHandler = {
+        handleChainStart: (chain: any, inputs: any, runId: string) => {
+          capturedRunId = runId;
+        }
+      };
+
       const response = await chain.invoke(params, {
         tags: ['summarization'],
         metadata: { article_title: params.title, article_url: params.url },
+        callbacks: [callbackHandler]
       });
 
       // Handle different response formats from Langchain
@@ -175,7 +194,7 @@ Provide specific feedback and an overall score.`,
       const tokens = this.estimateTokens(summary);
       const cost = this.calculateCost(tokens);
 
-      return { summary, tokens, cost };
+      return { summary, tokens, cost, runId: capturedRunId };
     } catch (error) {
       console.error('Summary generation failed:', error);
       throw error;
@@ -185,7 +204,7 @@ Provide specific feedback and an overall score.`,
   /**
    * Generate collated summary using Langchain
    */
-  async generateCollatedSummary(summaries: string[]): Promise<{ summary: string; tokens: number; cost: number }> {
+  async generateCollatedSummary(summaries: string[]): Promise<{ summary: string; tokens: number; cost: number; runId?: string }> {
     const prompt = this.getPrompt('collation');
     if (!prompt) {
       throw new Error('Collation prompt not found');
@@ -196,11 +215,20 @@ Provide specific feedback and an overall score.`,
     const chain = prompt.pipe(this.chatModel);
     
     try {
+      // Capture run ID from callback
+      let capturedRunId: string | undefined;
+      const callbackHandler = {
+        handleChainStart: (chain: any, inputs: any, runId: string) => {
+          capturedRunId = runId;
+        }
+      };
+
       const response = await chain.invoke(
         { summaries: summariesText },
         {
           tags: ['collation'],
           metadata: { summary_count: summaries.length },
+          callbacks: [callbackHandler]
         }
       );
 
@@ -208,7 +236,7 @@ Provide specific feedback and an overall score.`,
       const tokens = this.estimateTokens(summary);
       const cost = this.calculateCost(tokens);
 
-      return { summary, tokens, cost };
+      return { summary, tokens, cost, runId: capturedRunId };
     } catch (error) {
       console.error('Collated summary generation failed:', error);
       throw error;
@@ -350,17 +378,30 @@ Provide specific feedback and an overall score.`,
    * Add annotation to a trace
    */
   async addAnnotation(params: {
-    traceId: string;
+    runId: string;
     annotation: {
       type: 'pass' | 'fail';
       score: number;
       feedback: string;
       evaluator: string;
+      metadata?: Record<string, any>;
     };
   }): Promise<void> {
+    if (!this.client) {
+      console.warn('LangSmith client not initialized, skipping annotation');
+      return;
+    }
+
     try {
-      // Simplified annotation for now - just log
-      console.log(`Adding annotation to trace: ${params.traceId}`, params.annotation);
+      await this.client.createFeedback(params.runId, params.annotation.type, {
+        score: params.annotation.score,
+        comment: params.annotation.feedback,
+        sourceInfo: {
+          evaluator: params.annotation.evaluator,
+          ...params.annotation.metadata
+        }
+      });
+      console.log(`✅ Added annotation to run: ${params.runId} (score: ${params.annotation.score})`);
     } catch (error) {
       console.error('Failed to add annotation:', error);
     }
@@ -435,16 +476,9 @@ Provide specific feedback and an overall score.`,
   }
 
   /**
-   * Get tracer instance
+   * Get LangSmith client instance
    */
-  getTracer(): any {
-    return this.tracer;
-  }
-
-  /**
-   * Get client instance
-   */
-  getClient(): any {
+  getClient(): Client | null {
     return this.client;
   }
 }

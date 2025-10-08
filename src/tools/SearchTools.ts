@@ -1,10 +1,12 @@
 import { SearchSettings, Article, ToolResult } from '@/types/agent';
 import { createClient } from '@supabase/supabase-js';
+import { tracingWrapper } from '@/lib/tracing';
 
 export class SearchTools {
   private googleApiKey: string;
   private searchEngineId: string;
   private supabase;
+  private tracing = tracingWrapper;
 
   constructor() {
     this.googleApiKey = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY || '';
@@ -29,68 +31,76 @@ export class SearchTools {
    * Search for articles using Google Custom Search API
    */
   async searchWeb(searchSettings: SearchSettings): Promise<ToolResult> {
-    try {
-      console.log(`Searching for articles with query: ${searchSettings.query}`);
-      
-      if (!this.googleApiKey || !this.searchEngineId) {
-        throw new Error('Google Custom Search API credentials not configured');
-      }
+    return this.tracing.traceToolExecution(
+      'searchWeb',
+      async () => {
+        console.log(`Searching for articles with query: ${searchSettings.query}`);
+        
+        if (!this.googleApiKey || !this.searchEngineId) {
+          throw new Error('Google Custom Search API credentials not configured');
+        }
 
-      const searchUrl = new URL('https://www.googleapis.com/customsearch/v1');
-      searchUrl.searchParams.set('key', this.googleApiKey);
-      searchUrl.searchParams.set('cx', this.searchEngineId);
-      searchUrl.searchParams.set('q', searchSettings.query);
-      searchUrl.searchParams.set('num', searchSettings.maxResults.toString());
-      
-      if (searchSettings.dateRange) {
-        searchUrl.searchParams.set('dateRestrict', searchSettings.dateRange);
-      }
+        const searchUrl = new URL('https://www.googleapis.com/customsearch/v1');
+        searchUrl.searchParams.set('key', this.googleApiKey);
+        searchUrl.searchParams.set('cx', this.searchEngineId);
+        searchUrl.searchParams.set('q', searchSettings.query);
+        searchUrl.searchParams.set('num', searchSettings.maxResults.toString());
+        
+        if (searchSettings.dateRange) {
+          searchUrl.searchParams.set('dateRestrict', searchSettings.dateRange);
+        }
 
-      const response = await fetch(searchUrl.toString());
-      
-      if (!response.ok) {
-        throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText}`);
-      }
+        const response = await fetch(searchUrl.toString());
+        
+        if (!response.ok) {
+          throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText}`);
+        }
 
-      const data = await response.json();
-      
-      if (!data.items) {
-        console.log('No search results found');
+        const data = await response.json();
+        
+        if (!data.items) {
+          console.log('No search results found');
+          return {
+            success: true,
+            data: []
+          };
+        }
+
+        const searchResults = data.items.map((item: any) => ({
+          id: this.generateArticleId(item.link),
+          title: item.title,
+          url: item.link,
+          snippet: item.snippet,
+          publishedDate: this.parseDate(item.pagemap?.metatags?.[0]?.['article:published_time'] || item.pagemap?.metatags?.[0]?.['og:updated_time']),
+          source: this.extractSource(item.displayLink),
+          relevancyScore: 0 // Will be calculated later
+        }));
+
+        console.log(`Found ${searchResults.length} search results`);
+        
         return {
           success: true,
-          data: []
+          data: searchResults,
+          metadata: {
+            executionTime: Date.now(),
+            cost: 0,
+            tokens: 0
+          }
         };
+      },
+      {
+        query: searchSettings.query,
+        maxResults: searchSettings.maxResults,
+        dateRange: searchSettings.dateRange,
+        sources: searchSettings.sources
       }
-
-      const searchResults = data.items.map((item: any) => ({
-        id: this.generateArticleId(item.link),
-        title: item.title,
-        url: item.link,
-        snippet: item.snippet,
-        publishedDate: this.parseDate(item.pagemap?.metatags?.[0]?.['article:published_time'] || item.pagemap?.metatags?.[0]?.['og:updated_time']),
-        source: this.extractSource(item.displayLink),
-        relevancyScore: 0 // Will be calculated later
-      }));
-
-      console.log(`Found ${searchResults.length} search results`);
-      
-      return {
-        success: true,
-        data: searchResults,
-        metadata: {
-          executionTime: Date.now(),
-          cost: 0,
-          tokens: 0
-        }
-      };
-
-    } catch (error) {
+    ).catch(error => {
       console.error('Search failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Search failed'
       };
-    }
+    });
   }
 
   /**

@@ -22,6 +22,7 @@
     "@langchain/core": "^0.1.23",
     "@langchain/openai": "^0.0.14",
     "@supabase/supabase-js": "^2.38.4",
+    "langsmith": "^0.3.73",
     "next": "14.0.4",
     "openai": "^4.20.1",
     "react": "^18",

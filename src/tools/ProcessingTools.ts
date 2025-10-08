@@ -1,8 +1,10 @@
 import { Article, ToolResult } from '@/types/agent';
 import { createClient } from '@supabase/supabase-js';
+import { tracingWrapper } from '@/lib/tracing';
 
 export class ProcessingTools {
   private supabase;
+  private tracing = tracingWrapper;
 
   constructor() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -19,82 +21,103 @@ export class ProcessingTools {
    * Score articles for relevancy using existing algorithm
    */
   async scoreRelevancy(articles: Article[], relevancyThreshold: number = 0.2): Promise<ToolResult> {
-    try {
-      console.log(`Scoring relevancy for ${articles.length} articles`);
-      
-      const scoredArticles = articles.map(article => {
-        const score = this.calculateRelevancyScore(article);
+    return this.tracing.traceToolExecution(
+      'scoreRelevancy',
+      async () => {
+        console.log(`Scoring relevancy for ${articles.length} articles`);
+        
+        const scoredArticles = articles.map(article => {
+          const score = this.calculateRelevancyScore(article);
+          return {
+            ...article,
+            relevancyScore: score
+          };
+        });
+
+        // Filter articles with relevancy score above threshold (from system settings)
+        const threshold = relevancyThreshold;
+        console.log(`Using relevancy threshold: ${threshold} (from system settings)`);
+        const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
+        
+        // Sort by relevancy score (highest first)
+        relevantArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
+
+        console.log(`Found ${relevantArticles.length} relevant articles (threshold: ${threshold})`);
+        
         return {
-          ...article,
-          relevancyScore: score
+          success: true,
+          data: relevantArticles,
+          metadata: {
+            executionTime: Date.now(),
+            cost: 0,
+            tokens: 0
+          }
         };
-      });
-
-      // Filter articles with relevancy score above threshold (from system settings)
-      const threshold = relevancyThreshold;
-      console.log(`Using relevancy threshold: ${threshold} (from system settings)`);
-      const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
-      
-      // Sort by relevancy score (highest first)
-      relevantArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
-
-      console.log(`Found ${relevantArticles.length} relevant articles (threshold: ${threshold})`);
-      
-      return {
-        success: true,
-        data: relevantArticles,
-        metadata: {
-          executionTime: Date.now(),
-          cost: 0,
-          tokens: 0
-        }
-      };
-
-    } catch (error) {
+      },
+      {
+        articlesCount: articles.length,
+        threshold: relevancyThreshold
+      }
+    ).catch(error => {
       console.error('Relevancy scoring failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Relevancy scoring failed'
       };
-    }
+    });
   }
 
   /**
    * Store relevant articles in Supabase
    */
   async storeArticles(articles: Article[]): Promise<ToolResult> {
-    try {
-      console.log(`Storing ${articles.length} articles in database`);
-      
-      if (!this.supabase) {
-        throw new Error('Supabase client not initialized');
-      }
+    return this.tracing.traceToolExecution(
+      'storeArticles',
+      async () => {
+        console.log(`Storing ${articles.length} articles in database`);
+        
+        if (!this.supabase) {
+          throw new Error('Supabase client not initialized');
+        }
 
-      // Prepare articles for database insertion
-      const articlesToStore = articles.map(article => ({
-        id: article.id,
-        title: article.title || 'Untitled Article', // Ensure title is never null
-        url: article.url || 'https://unknown-source.com', // Ensure url is never null
-        content: article.content,
-        published_date: article.publishedDate,
-        source: article.source || 'unknown', // Ensure source is never null
-        relevancy_score: article.relevancyScore || 0, // Ensure score is never null
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }));
+        // Prepare articles for database insertion
+        const articlesToStore = articles.map(article => ({
+          id: article.id,
+          title: article.title || 'Untitled Article', // Ensure title is never null
+          url: article.url || 'https://unknown-source.com', // Ensure url is never null
+          content: article.content,
+          published_date: article.publishedDate,
+          source: article.source || 'unknown', // Ensure source is never null
+          relevancy_score: article.relevancyScore || 0, // Ensure score is never null
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
 
-      // Upsert articles into database (handle duplicates gracefully)
-      const { data, error } = await this.supabase
-        .from('articles')
-        .upsert(articlesToStore, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        })
-        .select();
+        // Upsert articles into database (handle duplicates gracefully)
+        const { data, error } = await this.supabase
+          .from('articles')
+          .upsert(articlesToStore, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          })
+          .select();
 
-      if (error) {
-        console.warn(`Database upsert failed: ${error.message}`);
-        // If upsert fails, try to continue with original articles
+        if (error) {
+          console.warn(`Database upsert failed: ${error.message}`);
+          // If upsert fails, try to continue with original articles
+          return {
+            success: true,
+            data: articles, // Return original articles for consistency
+            metadata: {
+              executionTime: Date.now(),
+              cost: 0,
+              tokens: 0
+            }
+          };
+        }
+
+        console.log(`Successfully stored ${data.length} articles`);
+        
         return {
           success: true,
           data: articles, // Return original articles for consistency
@@ -104,27 +127,18 @@ export class ProcessingTools {
             tokens: 0
           }
         };
+      },
+      {
+        articlesCount: articles.length,
+        avgRelevancyScore: articles.reduce((sum, a) => sum + (a.relevancyScore || 0), 0) / articles.length
       }
-
-      console.log(`Successfully stored ${data.length} articles`);
-      
-      return {
-        success: true,
-        data: articles, // Return original articles for consistency
-        metadata: {
-          executionTime: Date.now(),
-          cost: 0,
-          tokens: 0
-        }
-      };
-
-    } catch (error) {
+    ).catch(error => {
       console.error('Article storage failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Article storage failed'
       };
-    }
+    });
   }
 
   /**

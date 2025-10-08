@@ -45,6 +45,25 @@ export class SummaryTools {
               summary: summaryResult.summary
             });
             
+            // Link evaluation score to trace via annotation
+            if (summaryResult.runId) {
+              await this.langchain.addAnnotation({
+                runId: summaryResult.runId,
+                annotation: {
+                  type: evaluationResult.overallScore >= 0.5 ? 'pass' : 'fail',
+                  score: evaluationResult.overallScore,
+                  feedback: evaluationResult.feedback,
+                  evaluator: 'gpt-4o-mini',
+                  metadata: {
+                    coherence: evaluationResult.coherence,
+                    accuracy: evaluationResult.accuracy,
+                    completeness: evaluationResult.completeness,
+                    readability: evaluationResult.readability
+                  }
+                }
+              });
+            }
+            
             totalCost += summaryResult.cost;
             totalTokens += summaryResult.tokens;
             
@@ -124,6 +143,27 @@ export class SummaryTools {
         collatedResult.summary, 
         qualitySummaries.length
       );
+      
+      // Link collated evaluation score to trace via annotation
+      if (collatedResult.runId) {
+        await this.langchain.addAnnotation({
+          runId: collatedResult.runId,
+          annotation: {
+            type: evaluationResult.overallScore >= 0.5 ? 'pass' : 'fail',
+            score: evaluationResult.overallScore,
+            feedback: evaluationResult.feedback,
+            evaluator: 'gpt-4o-mini',
+            metadata: {
+              coherence: evaluationResult.coherence,
+              accuracy: evaluationResult.accuracy,
+              completeness: evaluationResult.completeness,
+              readability: evaluationResult.readability,
+              summaryCount: qualitySummaries.length,
+              evaluationType: 'collated_summary'
+            }
+          }
+        });
+      }
       
       console.log(`Successfully collated summaries (Quality score: ${evaluationResult.overallScore})`);
       
