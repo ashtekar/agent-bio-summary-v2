@@ -452,7 +452,7 @@ export class LLMDrivenBioSummaryAgent {
           
           if (toolCall.function.name === 'sendEmail' && args.summary) {
             // Truncate HTML summary content for sendEmail
-            const truncatedSummary = this.smartTruncateContent(args.summary, 2000);
+            const truncatedSummary = this.smartTruncateContent(args.summary, 100000);
             const limitedArgs = { ...args, summary: truncatedSummary };
             const newArguments = JSON.stringify(limitedArgs);
             
