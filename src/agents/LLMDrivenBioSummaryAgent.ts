@@ -371,7 +371,8 @@ export class LLMDrivenBioSummaryAgent {
               
               // Remove trailing commas that would make JSON invalid
               // e.g., {"items":[{...},]} -> {"items":[{...}]}
-              argumentsStr = argumentsStr.replace(/,(\s*)([\]}])/g, '$1$2');
+              // Handle all whitespace including newlines
+              argumentsStr = argumentsStr.replace(/,\s*([\]}])/g, '$1');
               
               // Ensure we close the JSON properly
               // If we have an open array or object, close it
