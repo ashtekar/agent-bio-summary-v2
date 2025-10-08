@@ -337,7 +337,7 @@ export class LLMDrivenBioSummaryAgent {
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
       // Handle tools that might have large article data
-      if (toolCall.function.name === 'extractScoreAndStoreArticles' || toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'sendEmail') {
+      if (toolCall.function.name === 'extractScoreAndStoreArticles' || toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'collateSummary' || toolCall.function.name === 'sendEmail') {
         try {
           // First, check if arguments are too long and truncate if needed
           let argumentsStr = toolCall.function.arguments;
@@ -515,6 +515,17 @@ export class LLMDrivenBioSummaryAgent {
               function: {
                 ...toolCall.function,
                 arguments: JSON.stringify({ articles: [] })
+              }
+            };
+          } else if (toolCall.function.name === 'collateSummary') {
+            console.warn(`Creating minimal safe version for ${toolCall.function.name}`);
+            // Use summaries from context if available
+            const summaries = this.context.summaries || [];
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: JSON.stringify({ summaries: summaries })
               }
             };
           } else if (toolCall.function.name === 'sendEmail') {
