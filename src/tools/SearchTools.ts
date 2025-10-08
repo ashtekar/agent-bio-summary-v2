@@ -107,64 +107,70 @@ export class SearchTools {
    * Extract full article content from URLs
    */
   async extractArticles(searchResults: any[]): Promise<ToolResult> {
-    try {
-      console.log(`Extracting content from ${searchResults.length} articles`);
-      
-      const articles: Article[] = [];
-      
-      // Process articles in parallel with concurrency limit
-      const concurrencyLimit = 5;
-      const chunks = this.chunkArray(searchResults, concurrencyLimit);
-      
-      for (const chunk of chunks) {
-        const promises = chunk.map(async (result) => {
-          try {
-            const content = await this.extractArticleContent(result.url);
-            return {
-              ...result,
-              content,
-              relevancyScore: 0
-            } as Article;
-          } catch (error) {
-            console.warn(`Failed to extract content from ${result.url}:`, error);
-            // Provide more descriptive content for different error types
-            let fallbackContent = result.snippet || 'Content extraction failed';
-            if (error instanceof Error && error.message.includes('403')) {
-              fallbackContent = `[Access Restricted - Using Title/Snippet Only] ${result.snippet || result.title}`;
-            } else if (error instanceof Error && error.message.includes('404')) {
-              fallbackContent = `[Page Not Found - Using Title/Snippet Only] ${result.snippet || result.title}`;
-            }
-            return {
-              ...result,
-              content: fallbackContent,
-              relevancyScore: 0
-            } as Article;
-          }
-        });
+    return this.tracing.traceToolExecution(
+      'extractArticles',
+      async () => {
+        console.log(`Extracting content from ${searchResults.length} articles`);
         
-        const chunkResults = await Promise.all(promises);
-        articles.push(...chunkResults);
-      }
-
-      console.log(`Successfully extracted content from ${articles.length} articles`);
-      
-      return {
-        success: true,
-        data: articles,
-        metadata: {
-          executionTime: Date.now(),
-          cost: 0,
-          tokens: 0
+        const articles: Article[] = [];
+        
+        // Process articles in parallel with concurrency limit
+        const concurrencyLimit = 5;
+        const chunks = this.chunkArray(searchResults, concurrencyLimit);
+        
+        for (const chunk of chunks) {
+          const promises = chunk.map(async (result) => {
+            try {
+              const content = await this.extractArticleContent(result.url);
+              return {
+                ...result,
+                content,
+                relevancyScore: 0
+              } as Article;
+            } catch (error) {
+              console.warn(`Failed to extract content from ${result.url}:`, error);
+              // Provide more descriptive content for different error types
+              let fallbackContent = result.snippet || 'Content extraction failed';
+              if (error instanceof Error && error.message.includes('403')) {
+                fallbackContent = `[Access Restricted - Using Title/Snippet Only] ${result.snippet || result.title}`;
+              } else if (error instanceof Error && error.message.includes('404')) {
+                fallbackContent = `[Page Not Found - Using Title/Snippet Only] ${result.snippet || result.title}`;
+              }
+              return {
+                ...result,
+                content: fallbackContent,
+                relevancyScore: 0
+              } as Article;
+            }
+          });
+          
+          const chunkResults = await Promise.all(promises);
+          articles.push(...chunkResults);
         }
-      };
 
-    } catch (error) {
+        console.log(`Successfully extracted content from ${articles.length} articles`);
+        
+        return {
+          success: true,
+          data: articles,
+          metadata: {
+            executionTime: Date.now(),
+            cost: 0,
+            tokens: 0
+          }
+        };
+      },
+      {
+        articleCount: searchResults.length,
+        concurrencyLimit: 5
+      }
+    ).catch(error => {
       console.error('Article extraction failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Article extraction failed'
       };
-    }
+    });
   }
 
   /**
@@ -269,9 +275,12 @@ export class SearchTools {
    * Phase 2B optimization as per Design Spec Section 9
    */
   async extractScoreAndStoreArticles(searchResults: any[], relevancyThreshold: number = 0.2): Promise<ToolResult> {
-    const startTime = Date.now();
-    
-    try {
+    return this.tracing.traceToolExecution(
+      'extractScoreAndStoreArticles',
+      async () => {
+        const startTime = Date.now();
+        
+        try {
       console.log('='.repeat(80));
       console.log('[COMBINED TOOL] Starting extractScoreAndStoreArticles');
       console.log(`[COMBINED TOOL] Processing ${searchResults.length} search results`);
@@ -408,29 +417,42 @@ export class SearchTools {
       console.log(`  • Final Result: ${relevantArticles.length} relevant articles ready for summarization`);
       console.log('='.repeat(80));
 
-      return {
-        success: true,
-        data: relevantArticles,
-        metadata: {
-          executionTime: totalTime,
-          extractionTime,
-          scoringTime,
-          storageTime,
-          totalArticles: articles.length,
-          relevantArticles: relevantArticles.length,
-          threshold,
-          cost: 0,
-          tokens: 0
-        }
-      };
+          return {
+            success: true,
+            data: relevantArticles,
+            metadata: {
+              executionTime: totalTime,
+              extractionTime,
+              scoringTime,
+              storageTime,
+              totalArticles: articles.length,
+              relevantArticles: relevantArticles.length,
+              threshold,
+              cost: 0,
+              tokens: 0
+            }
+          };
 
-    } catch (error) {
-      console.error('[COMBINED TOOL] ✗ Failed:', error);
+        } catch (error) {
+          console.error('[COMBINED TOOL] ✗ Failed:', error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Extract, score, and store operation failed'
+          };
+        }
+      },
+      {
+        searchResultsCount: searchResults.length,
+        relevancyThreshold,
+        operation: 'combined_extract_score_store'
+      }
+    ).catch(error => {
+      console.error('[COMBINED TOOL] Tracing wrapper error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Extract, score, and store operation failed'
       };
-    }
+    });
   }
 
   /**
