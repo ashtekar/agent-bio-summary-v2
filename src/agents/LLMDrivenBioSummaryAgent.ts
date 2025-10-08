@@ -369,10 +369,18 @@ export class LLMDrivenBioSummaryAgent {
             if (truncateAt > 500) { // Lowered threshold - any reasonable truncation point is acceptable
               argumentsStr = argumentsStr.substring(0, truncateAt + 1);
               
+              console.log(`Before comma removal: ${argumentsStr.substring(argumentsStr.length - 50)}`);
+              
               // Remove trailing commas that would make JSON invalid
-              // e.g., {"items":[{...},]} -> {"items":[{...}]}
-              // Handle all whitespace including newlines
-              argumentsStr = argumentsStr.replace(/,\s*([\]}])/g, '$1');
+              // The comma might be right at the end after truncation: {...},
+              // Or before a bracket we're about to add: {...},]
+              argumentsStr = argumentsStr.trimEnd(); // Remove trailing whitespace first
+              if (argumentsStr.endsWith(',')) {
+                argumentsStr = argumentsStr.slice(0, -1); // Remove trailing comma
+                console.log('Removed trailing comma at end of string');
+              }
+              
+              console.log(`After comma removal: ${argumentsStr.substring(argumentsStr.length - 50)}`);
               
               // Ensure we close the JSON properly
               // If we have an open array or object, close it
