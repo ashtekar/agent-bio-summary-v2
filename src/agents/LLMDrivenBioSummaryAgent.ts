@@ -91,7 +91,7 @@ export class LLMDrivenBioSummaryAgent {
   private async executeWithLLM(): Promise<ToolResult> {
     // Set up timeout to prevent infinite execution
     const startTime = Date.now();
-    const maxExecutionTime = 170 * 1000; // 170 seconds (leave 10 seconds buffer for Vercel's 180s limit)
+    const maxExecutionTime = 290 * 1000; // 290 seconds (leave 10 seconds buffer for Vercel's 300s limit)
     
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       {
@@ -457,6 +457,27 @@ export class LLMDrivenBioSummaryAgent {
             const newArguments = JSON.stringify(limitedArgs);
             
             console.log(`Preprocessed ${toolCall.function.name}: truncated summary from ${args.summary.length} to ${truncatedSummary.length} chars, args length: ${newArguments.length}`);
+            
+            return {
+              ...toolCall,
+              function: {
+                ...toolCall.function,
+                arguments: newArguments
+              }
+            };
+          }
+          
+          if (toolCall.function.name === 'collateSummary' && args.summaries && Array.isArray(args.summaries)) {
+            // Truncate summary content to prevent JSON bloat
+            const limitedSummaries = args.summaries.map((summary: any) => ({
+              ...summary,
+              summary: summary.summary ? this.smartTruncateContent(summary.summary, 1500) : summary.summary
+            }));
+            
+            const limitedArgs = { summaries: limitedSummaries };
+            const newArguments = JSON.stringify(limitedArgs);
+            
+            console.log(`Preprocessed ${toolCall.function.name}: truncated ${args.summaries.length} summaries, args length: ${newArguments.length}`);
             
             return {
               ...toolCall,
