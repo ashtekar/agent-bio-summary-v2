@@ -378,8 +378,10 @@ Provide specific feedback and an overall score.`,
         inputs: params.inputs,
         start_time: Date.now(),
         project_name: process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2',
-        extra: params.metadata,
-        tags: params.tags
+        extra: {
+          ...params.metadata,
+          tags: params.tags
+        }
       });
       
       console.log(`✅ Created parent trace: ${params.name} (ID: ${runId})`);
