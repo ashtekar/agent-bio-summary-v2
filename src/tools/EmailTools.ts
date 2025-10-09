@@ -122,6 +122,22 @@ export class EmailTools {
   }
 
   /**
+   * Strip markdown code fences from HTML content
+   */
+  private stripMarkdownCodeFences(html: string): string {
+    // Remove ```html at the start and ``` at the end
+    let cleaned = html.trim();
+    
+    // Remove opening code fence with optional language identifier
+    cleaned = cleaned.replace(/^```(?:html|HTML)?\s*\n?/m, '');
+    
+    // Remove closing code fence
+    cleaned = cleaned.replace(/\n?```\s*$/m, '');
+    
+    return cleaned.trim();
+  }
+
+  /**
    * Generate HTML email content
    */
   private generateEmailHtml(summary: string, metadata: { sessionId: string; articlesCount: number; executionTime: number }): string {
@@ -132,6 +148,9 @@ export class EmailTools {
       month: 'long',
       day: 'numeric'
     });
+    
+    // Strip any markdown code fences from the summary
+    const cleanedSummary = this.stripMarkdownCodeFences(summary);
 
     return `
 <!DOCTYPE html>
@@ -268,7 +287,7 @@ export class EmailTools {
         </div>
         
         <div class="content">
-            ${summary}
+            ${cleanedSummary}
         </div>
         
         <div class="feedback-section">
