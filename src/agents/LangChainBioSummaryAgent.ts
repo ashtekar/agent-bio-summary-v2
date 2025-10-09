@@ -68,8 +68,7 @@ export class LangChainBioSummaryAgent {
       maxIterations: 10,
       returnIntermediateSteps: true,
       handleParsingErrors: true,
-      verbose: true,
-      earlyStoppingMethod: 'generate' // Ensure agent doesn't stop prematurely
+      verbose: true
     });
 
     console.log(`✅ LangChain AgentExecutor initialized with ${allLangChainTools.length} tools`);
