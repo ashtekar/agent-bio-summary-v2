@@ -184,7 +184,11 @@ export class LangChainBioSummaryAgent {
    * Build agent input from context
    */
   private buildAgentInput(): string {
-    const { searchSettings, recipients } = this.context;
+    const { searchSettings, recipients, systemSettings } = this.context;
+    const relevancyThreshold = systemSettings.relevancyThreshold ?? 0.2;
+    
+    // Format recipients for the LLM
+    const recipientsInfo = recipients.map(r => `  - ${r.name} <${r.email}>`).join('\n');
     
     return `Generate a daily synthetic biology summary with the following context:
 
@@ -193,17 +197,22 @@ Search Settings:
 - Max Results: ${searchSettings.maxResults}
 - Date Range: ${searchSettings.dateRange}
 - Sources: ${searchSettings.sources.join(', ')}
+- Relevancy Threshold: ${relevancyThreshold} (only articles scoring >= ${relevancyThreshold} should be processed)
 
-Recipients: ${recipients.length} email recipient(s)
+Email Recipients (${recipients.length}):
+${recipientsInfo}
 
 Task:
 1. Search for articles using searchWeb
-2. Use extractScoreAndStoreArticles to efficiently process ALL search results in one call
-3. Summarize articles (MAX 2 per call) using summarizeArticle
+2. Use extractScoreAndStoreArticles with relevancyThreshold=${relevancyThreshold} to efficiently process ALL search results in one call
+3. Summarize articles (MAX 2 per call) using summarizeArticle - ONLY summarize articles that passed the relevancy threshold
 4. Collate summaries into newsletter using collateSummary
-5. Send email to recipients using sendEmail
+5. Send email to ALL recipients listed above using sendEmail
 
-IMPORTANT: Use extractScoreAndStoreArticles after searchWeb - it's 3x faster than separate calls.`;
+IMPORTANT: 
+- Use extractScoreAndStoreArticles after searchWeb with relevancyThreshold=${relevancyThreshold}
+- Include ALL ${recipients.length} recipient(s) in the sendEmail call
+- Only summarize articles with relevancyScore >= ${relevancyThreshold}`;
   }
 
   /**

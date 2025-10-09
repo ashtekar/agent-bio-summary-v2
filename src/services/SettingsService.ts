@@ -41,7 +41,8 @@ export class SettingsService {
         emailTemplate: data?.email_template || 'default',
         llmModel: data?.llm_model || 'gpt-4o',
         llmTemperature: data?.llm_temperature || 0.3,
-        llmMaxTokens: data?.llm_max_tokens || 1000
+        llmMaxTokens: data?.llm_max_tokens || 1000,
+        relevancyThreshold: data?.relevancy_threshold || 0.2
       };
 
     } catch (error) {
@@ -55,7 +56,8 @@ export class SettingsService {
         emailTemplate: 'default',
         llmModel: 'gpt-4o',
         llmTemperature: 0.3,
-        llmMaxTokens: 1000
+        llmMaxTokens: 1000,
+        relevancyThreshold: 0.2
       };
     }
   }
@@ -184,6 +186,7 @@ export class SettingsService {
         llm_model: settings.llmModel,
         llm_temperature: settings.llmTemperature,
         llm_max_tokens: settings.llmMaxTokens,
+        relevancy_threshold: settings.relevancyThreshold,
         updated_at: new Date().toISOString()
       };
 
