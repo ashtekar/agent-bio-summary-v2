@@ -3,7 +3,7 @@
  * Week 3: Agent Migration - Uses LangChain AgentExecutor for automatic tool orchestration
  */
 
-import { AgentExecutor, createOpenAIFunctionsAgent } from 'langchain/agents';
+import { AgentExecutor, createOpenAIToolsAgent } from 'langchain/agents';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
 import { allLangChainTools } from '@/tools/LangChainTools';
@@ -54,8 +54,8 @@ export class LangChainBioSummaryAgent {
     // Get system prompt
     const systemPromptTemplate = this.getSystemPromptTemplate();
     
-    // Create OpenAI Functions Agent
-    const agent = await createOpenAIFunctionsAgent({
+    // Create OpenAI Tools Agent (newer, more reliable than Functions Agent)
+    const agent = await createOpenAIToolsAgent({
       llm: this.llm,
       tools: allLangChainTools,
       prompt: systemPromptTemplate
