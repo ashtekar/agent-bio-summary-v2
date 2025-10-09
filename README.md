@@ -22,7 +22,7 @@ Agent Bio Summary V2 is an intelligent, agentic system that automatically genera
 - **LangSmith Tracing**: 100% observability - all tool executions and LLM operations traced
 - **LLM-as-a-Judge**: Automatic quality evaluation (GPT-4o-mini) for every summary
 - **Quality Annotations**: Eval scores (0-1 scale) linked to traces for trend tracking
-- **Langchain Integration**: Centralized prompt management (migrating to Hub in Week 4)
+- **Langchain Integration**: Centralized prompt management 
 - **Cost Tracking**: Automatic cost and token tracking per operation (~$0.20/month for evals)
 
 ## 🏗️ Architecture
@@ -110,13 +110,13 @@ graph TB
 
 ## 🔍 Observability & Quality Tracking
 
-### **LangSmith Tracing** ✅ (Week 1 & 2 Complete)
+### **LangSmith Tracing** ✅ 
 - **Full Coverage**: All tool executions and LLM operations traced
 - **Dashboard**: https://smith.langchain.com (filter by project: `agent-bio-summary-v2`)
 - **Metadata**: Duration, inputs, outputs, success/failure for every operation
 - **Cost Tracking**: Automatic token and cost calculation per trace
 
-### **LLM-as-a-Judge Evaluation** ✅ (Implemented)
+### **LLM-as-a-Judge Evaluation** ✅ 
 - **Auto-Evaluation**: Every summary scored by GPT-4o-mini
 - **Pass/Fail**: Threshold at 0.5 (summaries < 0.5 filtered out)
 - **Annotations**: Quality scores linked to traces in LangSmith

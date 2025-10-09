@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LLMDrivenBioSummaryAgent } from '@/agents/LLMDrivenBioSummaryAgent';
+import { LangChainBioSummaryAgent } from '@/agents/LangChainBioSummaryAgent';
 import { SearchSettings, SystemSettings, EmailRecipient } from '@/types/agent';
 import { settingsService } from '@/services/SettingsService';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    
+    // Feature flag: Use LangChain agent or legacy OpenAI SDK agent
+    const useLangChainAgent = process.env.USE_LANGCHAIN_AGENT === 'true' || body.useLangChainAgent === true;
     
     // Try to get settings from Supabase, fallback to defaults
     let context;
@@ -15,7 +19,8 @@ export async function POST(request: NextRequest) {
       console.log('Using settings from Supabase:', {
         model: context.systemSettings.llmModel,
         temperature: context.systemSettings.llmTemperature,
-        maxTokens: context.systemSettings.llmMaxTokens
+        maxTokens: context.systemSettings.llmMaxTokens,
+        agentType: useLangChainAgent ? 'LangChain' : 'OpenAI SDK'
       });
     } catch (error) {
       console.warn('Failed to load settings from Supabase, using defaults:', error);
@@ -54,9 +59,17 @@ export async function POST(request: NextRequest) {
       context = { ...defaultContext, ...body };
     }
 
-    // Create and execute LLM-driven agent
-    const agent = new LLMDrivenBioSummaryAgent(context);
-    const result = await agent.execute();
+    // Create and execute agent (based on feature flag)
+    let result;
+    if (useLangChainAgent) {
+      console.log('🔄 Using LangChain AgentExecutor (Week 3 migration)');
+      const agent = new LangChainBioSummaryAgent(context);
+      result = await agent.execute();
+    } else {
+      console.log('📌 Using legacy OpenAI SDK agent');
+      const agent = new LLMDrivenBioSummaryAgent(context);
+      result = await agent.execute();
+    }
 
     if (result.success) {
       return NextResponse.json({

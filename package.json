@@ -19,15 +19,17 @@
     "cleanup:deployments:dry": "./scripts/cleanup-deployments.sh --dry-run"
   },
   "dependencies": {
-    "@langchain/core": "^0.1.23",
-    "@langchain/openai": "^0.0.14",
+    "@langchain/core": "^0.3.78",
+    "@langchain/openai": "^0.6.14",
     "@supabase/supabase-js": "^2.38.4",
+    "langchain": "^0.3.35",
     "langsmith": "^0.3.73",
     "next": "14.0.4",
     "openai": "^4.20.1",
     "react": "^18",
     "react-dom": "^18",
-    "resend": "^2.1.0"
+    "resend": "^2.1.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.5",
