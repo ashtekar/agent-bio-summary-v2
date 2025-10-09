@@ -8,7 +8,38 @@ This directory contains scripts to manage and clean up Vercel deployments for th
 A comprehensive Node.js script with advanced features and detailed logging.
 
 ### Shell Version (`cleanup-deployments.sh`)
-A lightweight shell script for quick cleanup operations.
+A lightweight shell script that uses Vercel's REST API to fetch and display deployment information.
+
+**⚠️ Security Note**: This script requires a Vercel Personal Access Token. See [Security Setup](#-security-setup) below for safe configuration.
+
+## 🔐 Security Setup
+
+The shell script requires a Vercel Personal Access Token. **Never hardcode tokens in scripts or commit them to git!**
+
+### Option 1: Environment Variable (Recommended)
+```bash
+# Add to your ~/.zshrc or ~/.bashrc
+export VERCEL_TOKEN="your_token_here"
+
+# Or export in your current shell session
+export VERCEL_TOKEN="your_token_here"
+./scripts/cleanup-deployments.sh
+```
+
+### Option 2: Use a .env file (Git-Ignored)
+```bash
+# Create a .env file (already in .gitignore)
+echo 'VERCEL_TOKEN=your_token_here' > .env.vercel
+
+# Source it before running the script
+source .env.vercel && ./scripts/cleanup-deployments.sh
+```
+
+### Get Your Vercel Token
+1. Go to https://vercel.com/account/tokens
+2. Create a new token with appropriate permissions
+3. Copy the token and save it securely
+4. **Never commit the token to git!**
 
 ## 🚀 Usage
 
@@ -37,15 +68,15 @@ node scripts/cleanup-deployments.js --help
 
 #### Shell Script
 ```bash
-# Dry run
-./scripts/cleanup-deployments.sh --dry-run
+# Fetch and display all deployments (requires VERCEL_TOKEN env var)
+export VERCEL_TOKEN="your_token"
+./scripts/cleanup-deployments.sh
 
-# Clean up with custom settings
-./scripts/cleanup-deployments.sh --keep 3 --project my-project
-
-# Show help
-./scripts/cleanup-deployments.sh --help
+# Or use with a .env file
+source .env.vercel && ./scripts/cleanup-deployments.sh
 ```
+
+**Note**: The current shell script only fetches and displays deployment information using Vercel's REST API. It does not perform deletions yet.
 
 ## 📋 Features
 
@@ -194,5 +225,6 @@ chmod +x scripts/cleanup-deployments.sh
 - Production deployments are protected
 - Preview deployments are cleaned up based on age
 - Failed deletions are logged but don't stop the process
+
 
 

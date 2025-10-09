@@ -68,7 +68,8 @@ export class LangChainBioSummaryAgent {
       maxIterations: 10,
       returnIntermediateSteps: true,
       handleParsingErrors: true,
-      verbose: true
+      verbose: true,
+      earlyStoppingMethod: 'generate' // Ensure agent doesn't stop prematurely
     });
 
     console.log(`✅ LangChain AgentExecutor initialized with ${allLangChainTools.length} tools`);
@@ -105,11 +106,40 @@ export class LangChainBioSummaryAgent {
 
       // Execute agent with LangChain
       console.log('🤖 Invoking LangChain AgentExecutor...');
-      const result = await this.executor.invoke({
-        input: agentInput
+      console.log('Agent input:', agentInput);
+      console.log('Agent config:', {
+        maxIterations: this.executor.maxIterations,
+        tools: allLangChainTools.map(t => t.name)
       });
+      
+      const result = await this.executor.invoke(
+        { input: agentInput },
+        {
+          callbacks: [
+            {
+              handleToolStart: (tool, input) => {
+                console.log(`🔧 Tool START: ${tool.name}`, JSON.stringify(input).substring(0, 200));
+              },
+              handleToolEnd: (output) => {
+                console.log(`✅ Tool END:`, typeof output, String(output).substring(0, 200));
+              },
+              handleToolError: (error) => {
+                console.error(`❌ Tool ERROR:`, error);
+              }
+            }
+          ]
+        }
+      );
 
       console.log('✅ LangChain agent execution completed');
+      console.log('Result output:', result.output);
+      console.log('Intermediate steps:', result.intermediateSteps?.length || 0);
+      
+      // Debug: Check if tools were called
+      if (!result.intermediateSteps || result.intermediateSteps.length === 0) {
+        console.warn('⚠️  WARNING: No tools were executed! Agent may have stopped prematurely.');
+        console.warn('This might indicate a configuration issue with the AgentExecutor.');
+      }
 
       // Update parent trace with outputs
       if (this.parentRunId) {
