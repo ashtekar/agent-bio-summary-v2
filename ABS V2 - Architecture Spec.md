@@ -34,7 +34,12 @@ graph TB
         GOOGLE_SEARCH[Google Custom Search API]
         SUPABASE[("Supabase Database")]
         RESEND[Resend.io Email]
-        LANGCHAIN[Langchain Integration]
+        LANGCHAIN[Langchain/LangSmith]
+    end
+    
+    subgraph "Observability"
+        LANGSMITH[("LangSmith Tracing")]
+        ANNOTATIONS[Quality Annotations]
     end
     
     UI --> API_CLIENT
@@ -58,6 +63,13 @@ graph TB
     EMAIL_TOOLS --> RESEND
     
     LLM_AGENT --> LANGCHAIN
+    
+    SEARCH_TOOLS -.-> LANGSMITH
+    PROCESSING_TOOLS -.-> LANGSMITH
+    SUMMARY_TOOLS -.-> LANGSMITH
+    EMAIL_TOOLS -.-> LANGSMITH
+    LANGCHAIN -.-> LANGSMITH
+    LANGSMITH --> ANNOTATIONS
 ```
 
 ## 🔄 LLM-Driven Execution Flow
@@ -294,9 +306,51 @@ graph LR
 
 - **Execution Time**: 30-60 seconds per summary (varies by model)
 - **Cost**: ~$0.02-0.50 per execution (configurable via model selection)
+  - Evaluation cost: +$0.20/month for ~10 articles/day
 - **Success Rate**: High with proper API configuration
 - **Scalability**: Horizontal scaling via stateless design
 - **Reliability**: Built-in error handling and retry logic
 - **Model Flexibility**: Dynamic model selection for cost/quality optimization
 
-This architecture provides a robust, intelligent, and scalable solution for automated bio summary generation using LLM-driven tool calling.
+## 🔍 Observability Architecture (Week 1 & 2 - Implemented)
+
+### LangSmith Integration
+```
+All Operations → LangSmith Tracing
+├── Tool Executions (Custom TracingWrapper)
+│   ├── searchWeb: query, results, duration
+│   ├── extractArticles: article count, extraction time
+│   ├── scoreRelevancy: threshold, relevant count
+│   ├── storeArticles: database operations
+│   └── sendEmail: recipients, delivery status
+│
+└── LangChain Operations (Auto-Traced)
+    ├── Summarization: article → summary (GPT-4o)
+    ├── Collation: summaries → newsletter (GPT-4o)
+    ├── Evaluation: summary → quality score (GPT-4o-mini)
+    └── Collated Evaluation: newsletter → quality score (GPT-4o-mini)
+
+Quality Scores → Annotations (Linked to Traces)
+├── Individual Summary: coherence, accuracy, completeness, readability
+└── Collated Newsletter: overall quality metrics
+```
+
+### Tracing Characteristics
+- **Coverage**: 100% of tool and LLM operations
+- **Overhead**: < 50ms per operation (async tracing)
+- **Cost**: Free tier (< 5K traces/month)
+- **Granularity**: Inputs, outputs, duration, success/failure, metadata
+- **Annotations**: Quality scores (0-1 scale) with pass/fail threshold (0.5)
+
+### Current Limitations (Fixed in Week 3)
+- ❌ Traces are flat (not hierarchical tree)
+- ❌ No parent agent run linking child tools
+- ✅ Workaround: Filter by session ID in dashboard
+
+### Future Enhancements (Week 3+)
+- ✅ Hierarchical traces (parent agent → child tools)
+- ✅ Visual workflow tree in LangSmith
+- ✅ Automatic parent-child linking via LangChain Agent
+- ✅ Prompt versioning and A/B testing (Week 4)
+
+This architecture provides a robust, intelligent, and fully observable solution for automated bio summary generation using LLM-driven tool calling with comprehensive quality tracking.

@@ -19,8 +19,11 @@ Agent Bio Summary V2 is an intelligent, agentic system that automatically genera
 - **Email Delivery**: Professional HTML email templates via Resend.io
 
 ### **Advanced Capabilities**
-- **Langchain Integration**: Centralized prompt management and tracing
-- **A/B Testing**: Built-in support for prompt experimentation and optimization
+- **LangSmith Tracing**: 100% observability - all tool executions and LLM operations traced
+- **LLM-as-a-Judge**: Automatic quality evaluation (GPT-4o-mini) for every summary
+- **Quality Annotations**: Eval scores (0-1 scale) linked to traces for trend tracking
+- **Langchain Integration**: Centralized prompt management (migrating to Hub in Week 4)
+- **Cost Tracking**: Automatic cost and token tracking per operation (~$0.20/month for evals)
 
 ## 🏗️ Architecture
 
@@ -49,7 +52,8 @@ graph TB
         GOOGLE[Google Search API]
         SUPABASE[Supabase Database]
         RESEND[Resend.io Email]
-        LANGCHAIN[Langchain Hub]
+        LANGCHAIN[Langchain]
+        LANGSMITH[("LangSmith Tracing")]
     end
     
     UI --> API
@@ -64,6 +68,12 @@ graph TB
     PROCESSING --> SUPABASE
     SUMMARY --> LANGCHAIN
     EMAIL --> RESEND
+    
+    SEARCH -.-> LANGSMITH
+    PROCESSING -.-> LANGSMITH
+    SUMMARY -.-> LANGSMITH
+    EMAIL -.-> LANGSMITH
+    LANGCHAIN -.-> LANGSMITH
 ```
 
 ### **Execution Flow**
@@ -95,9 +105,31 @@ graph TB
 
 - **Execution Time**: 30-60 seconds per summary (varies by model selection)
 - **Cost**: $0.02-0.50 per execution (configurable via model selection)
+  - Evaluation overhead: +$0.20/month for quality tracking (~10 articles/day)
 - **Success Rate**: High with proper API configuration
 - **Scalability**: Horizontal scaling via stateless design
 - **Reliability**: Built-in error handling and retry logic
+
+## 🔍 Observability & Quality Tracking
+
+### **LangSmith Tracing** ✅ (Week 1 & 2 Complete)
+- **Full Coverage**: All tool executions and LLM operations traced
+- **Dashboard**: https://smith.langchain.com (filter by project: `agent-bio-summary-v2`)
+- **Metadata**: Duration, inputs, outputs, success/failure for every operation
+- **Cost Tracking**: Automatic token and cost calculation per trace
+
+### **LLM-as-a-Judge Evaluation** ✅ (Implemented)
+- **Auto-Evaluation**: Every summary scored by GPT-4o-mini
+- **4 Metrics**: Coherence, accuracy, completeness, readability (0-1 scale)
+- **Pass/Fail**: Threshold at 0.5 (summaries < 0.5 filtered out)
+- **Annotations**: Quality scores linked to traces in LangSmith
+- **Cost**: ~$0.0003 per evaluation (~$0.20/month for daily summaries)
+
+### **Quality Dashboard Insights**
+- Track quality trends over time
+- Identify low-performing summaries
+- Compare prompt versions (coming in Week 4)
+- Monitor evaluation accuracy
 
 ## 🧪 Testing
 

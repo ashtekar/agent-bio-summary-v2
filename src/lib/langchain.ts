@@ -353,6 +353,7 @@ Provide specific feedback and an overall score.`,
 
   /**
    * Create a trace for agent execution
+   * Returns the run ID for child trace linking
    */
   async createTrace(params: {
     name: string;
@@ -360,17 +361,49 @@ Provide specific feedback and an overall score.`,
     outputs?: any;
     metadata?: any;
     tags?: string[];
-  }): Promise<void> {
+  }): Promise<string | null> {
+    if (!this.client) {
+      console.log(`Creating trace: ${params.name} (client not initialized)`);
+      return null;
+    }
+
     try {
-      // Simplified tracing for now - just log
-      console.log(`Creating trace: ${params.name}`, {
+      const { randomUUID } = require('crypto');
+      const runId = randomUUID();
+      
+      await this.client.createRun({
+        id: runId,
+        name: params.name,
+        run_type: 'chain',
         inputs: params.inputs,
-        outputs: params.outputs,
-        metadata: params.metadata,
-        tags: params.tags,
+        start_time: Date.now(),
+        project_name: process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2',
+        extra: params.metadata,
+        tags: params.tags
       });
+      
+      console.log(`✅ Created parent trace: ${params.name} (ID: ${runId})`);
+      return runId;
     } catch (error) {
       console.error('Failed to create trace:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update trace with outputs and end time
+   */
+  async updateTrace(runId: string, outputs: any): Promise<void> {
+    if (!this.client || !runId) return;
+
+    try {
+      await this.client.updateRun(runId, {
+        end_time: Date.now(),
+        outputs
+      });
+      console.log(`✅ Updated trace: ${runId}`);
+    } catch (error) {
+      console.error('Failed to update trace:', error);
     }
   }
 

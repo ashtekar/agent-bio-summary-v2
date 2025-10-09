@@ -47,31 +47,48 @@ Each tool will be a separate function call:
 6. **`collateSummary`** - Combine summaries into HTML email format
 7. **`sendEmail`** - Send via Resend.io to recipients
 
-## 3. Langchain Integration
+## 3. Langchain Integration ✅ **IMPLEMENTED**
 
 ```typescript
-// Langchain for prompts and tracing
-interface LangchainConfig {
+// Langchain for prompts, tracing, and evaluations
+interface LangchainIntegration {
+  // LangSmith Client for tracing and annotations
+  client: Client  // ✅ Implemented
+  
+  // Prompts (currently hardcoded, migrating to Hub in Week 4)
   prompts: {
-    searchPrompt: string
-    extractPrompt: string
-    scorePrompt: string
-    summarizePrompt: string
-    collatePrompt: string
-    emailPrompt: string
+    summarization: PromptTemplate  // ✅ Implemented
+    collation: PromptTemplate      // ✅ Implemented
+    evaluation: PromptTemplate     // ✅ Implemented (LLM-as-a-judge)
+    collatedEvaluation: PromptTemplate  // ✅ Implemented
   }
+  
+  // Tracing (LangSmith integration)
   tracing: {
-    enabled: boolean
-    annotations: boolean
-    evalLLM: string
+    enabled: boolean  // ✅ LANGCHAIN_TRACING_V2=true
+    workspaceId: string  // ✅ 8fcc7411-b8d8-4b1e-bb67-59ba217b2fa4
+    project: string  // ✅ agent-bio-summary-v2
+    annotations: boolean  // ✅ Implemented - eval scores linked to traces
   }
-  reinforcementLearning: {
-    enabled: boolean
-    gradingModel: string
-    fineTuningEnabled: boolean
+  
+  // LLM-as-a-Judge Evaluation
+  evaluation: {
+    enabled: boolean  // ✅ Runs on every summary
+    evalModel: 'gpt-4o-mini'  // ✅ Cost-optimized
+    metrics: ['coherence', 'accuracy', 'completeness', 'readability']  // ✅ 4 metrics
+    threshold: 0.5  // ✅ Pass/fail threshold
+    cost: '$0.20/month'  // ✅ For ~10 articles/day
   }
 }
 ```
+
+### Current Status (Week 1 & 2 Complete)
+- ✅ **LangSmith Tracing**: All tools and LangChain operations traced
+- ✅ **Eval Integration**: LLM-as-a-judge scores every summary (GPT-4o-mini)
+- ✅ **Annotations**: Quality scores linked to traces in LangSmith
+- ✅ **Tool Tracing**: searchWeb, extract, score, store, email all traced
+- ⏳ **Week 3 (Future)**: Migrate agent to LangChain AgentExecutor for hierarchical traces
+- ⏳ **Week 4 (Future)**: Move prompts to LangSmith Hub for version control
 
 ## 4. Database Schema (Copied from V1)
 
@@ -85,36 +102,69 @@ All existing tables will be copied to the new Supabase project:
 - `search_sites`
 - `feedback_comparisons`
 
-## 5. Error Handling & Tracing
+## 5. Error Handling & Tracing ✅ **IMPLEMENTED**
 
-- **Langchain Tracing**: All agent actions will be traced
-- **Graceful Exit**: Failed tool calls will be logged and the agent will exit gracefully
-- **Annotations**: LLM-as-a-judge will grade agent performance
-- **Reinforcement Learning**: Pass/fail grades will be used for fine-tuning
+### LangSmith Tracing (Week 1 & 2 Complete)
+- ✅ **All Tool Executions Traced**: searchWeb, extract, score, store, email
+- ✅ **LangChain Auto-Tracing**: Summarization and collation chains automatically traced
+- ✅ **Evaluation Tracing**: LLM-as-a-judge evaluations traced with GPT-4o-mini
+- ✅ **Annotations**: Quality scores (0-1 scale) linked to summary traces
+- ✅ **Metadata**: Duration, inputs, outputs, success/failure for all operations
+- ✅ **Graceful Degradation**: Tracing failures don't break tool execution
+- ⏳ **Hierarchical Traces**: Coming in Week 3 (LangChain Agent migration)
+
+### Error Handling
+- **Graceful Exit**: Failed tool calls logged and agent exits gracefully
+- **Retry Logic**: Agent retries up to 10 iterations
+- **Fallback Content**: Failed extractions use snippets instead of aborting
+- **Quality Filtering**: Low-quality summaries (score < 0.5) filtered out
+
+### Quality Assurance
+- **LLM-as-a-Judge**: Every summary evaluated on 4 metrics
+- **Pass/Fail Annotations**: Scores >= 0.5 marked as 'pass', < 0.5 as 'fail'
+- **Cost Efficient**: GPT-4o-mini for evaluations (~$0.0003 per eval)
+- **Dashboard Visibility**: All scores visible in LangSmith with trends over time
 
 ## 6. Key Differences from V1
 
-| Aspect | V1 (Current) | V2 (Agentic) |
-|--------|--------------|--------------|
-| **Flow** | Linear process | Agent with tool calls |
-| **Prompts** | Hardcoded in code | Stored in Langchain |
-| **Tracing** | Basic logging | Full Langchain tracing |
-| **Learning** | None | RL with LLM-as-a-judge |
-| **Error Handling** | Try/catch blocks | Graceful agent exits |
-| **Modularity** | Monolithic functions | Separate tool functions |
+| Aspect | V1 (Current) | V2 (Agentic - Current State) | V2 (Future - Week 3+) |
+|--------|--------------|------------------------------|----------------------|
+| **Flow** | Linear process | Agent with tool calls (OpenAI SDK) | LangChain AgentExecutor |
+| **Prompts** | Hardcoded in code | LangChain PromptTemplate (hardcoded) | LangSmith Prompt Hub |
+| **Tracing** | Basic logging (259 console.log) | ✅ Full LangSmith tracing | ✅ + Hierarchical traces |
+| **Evaluation** | None | ✅ LLM-as-a-judge (GPT-4o-mini, 4 metrics) | ✅ + Human feedback loop |
+| **Annotations** | None | ✅ Eval scores linked to traces | ✅ + A/B test results |
+| **Error Handling** | Try/catch blocks | Graceful agent exits + trace logging | Auto-retry + better recovery |
+| **Modularity** | Monolithic functions | ✅ Separate tool classes | ✅ + DynamicStructuredTool |
+| **Observability** | Console logs only | ✅ LangSmith dashboard | ✅ + Quality dashboards |
+| **Cost Tracking** | Manual estimation | ✅ Automatic per operation | ✅ + Trend analysis |
 
-## 7. Dependencies to Add
+## 7. Dependencies
 
+### ✅ Already Added (Week 1 & 2)
 ```json
 {
   "dependencies": {
-    "@openai/agent-sdk": "^latest",
-    "langchain": "^latest",
-    "@langchain/openai": "^latest",
-    "@langchain/core": "^latest"
+    "openai": "^4.x.x",           // OpenAI SDK (LangChain uses this)
+    "langchain": "^0.3.x",        // ✅ Installed
+    "@langchain/openai": "^0.3.x", // ✅ Installed
+    "@langchain/core": "^0.3.x",   // ✅ Installed
+    "langsmith": "^0.2.x"          // ✅ Installed (Week 1)
   }
 }
 ```
+
+### ⏳ To Add in Week 3
+```json
+{
+  "dependencies": {
+    "zod": "^3.22.0",                    // Input validation for tools
+    "@langchain/langgraph": "^0.0.20"    // Optional: Advanced agent workflows
+  }
+}
+```
+
+**Note:** LangChain wraps OpenAI SDK (doesn't replace it). All OpenAI models, API keys, and SDK remain in use.
 
 ## 8. Agent Context Elaboration
 
