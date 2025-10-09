@@ -105,10 +105,8 @@ graph TB
 
 - **Execution Time**: 30-60 seconds per summary (varies by model selection)
 - **Cost**: $0.02-0.50 per execution (configurable via model selection)
-  - Evaluation overhead: +$0.20/month for quality tracking (~10 articles/day)
-- **Success Rate**: High with proper API configuration
-- **Scalability**: Horizontal scaling via stateless design
-- **Reliability**: Built-in error handling and retry logic
+- Evaluation overhead: +$0.20/month for quality tracking (~10 articles/day)
+
 
 ## 🔍 Observability & Quality Tracking
 
@@ -120,7 +118,6 @@ graph TB
 
 ### **LLM-as-a-Judge Evaluation** ✅ (Implemented)
 - **Auto-Evaluation**: Every summary scored by GPT-4o-mini
-- **4 Metrics**: Coherence, accuracy, completeness, readability (0-1 scale)
 - **Pass/Fail**: Threshold at 0.5 (summaries < 0.5 filtered out)
 - **Annotations**: Quality scores linked to traces in LangSmith
 - **Cost**: ~$0.0003 per evaluation (~$0.20/month for daily summaries)
