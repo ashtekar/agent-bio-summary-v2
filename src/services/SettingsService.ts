@@ -24,9 +24,11 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
+      // Always use ID = 1 for singleton settings
       const { data, error } = await this.supabase
         .from('system_settings')
         .select('*')
+        .eq('id', 1)
         .maybeSingle();
 
       if (error) {
@@ -52,12 +54,12 @@ export class SettingsService {
       return {
         summaryLength: data?.summary_length || 100,
         targetAudience: data?.target_audience || 'college sophomore',
-        includeCitations: data?.include_citations || true,
+        includeCitations: data?.include_citations ?? true,
         emailTemplate: data?.email_template || 'default',
         llmModel: data?.llm_model || 'gpt-4o',
-        llmTemperature: data?.llm_temperature || 0.3,
+        llmTemperature: data?.llm_temperature ?? 0.3,
         llmMaxTokens: data?.llm_max_tokens || 1000,
-        relevancyThreshold: data?.relevancy_threshold || 0.2
+        relevancyThreshold: data?.relevancy_threshold ?? 0.2
       };
 
     } catch (error) {
@@ -86,9 +88,11 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
+      // Always use ID = 1 for singleton settings
       const { data, error } = await this.supabase
         .from('search_settings')
         .select('*')
+        .eq('id', 1)
         .maybeSingle();
 
       if (error) {
@@ -204,7 +208,9 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
+      // Always use ID = 1 for singleton settings
       const updateData = {
+        id: 1,
         summary_length: settings.summaryLength,
         target_audience: settings.targetAudience,
         include_citations: settings.includeCitations,
@@ -218,7 +224,7 @@ export class SettingsService {
 
       const { error } = await this.supabase
         .from('system_settings')
-        .upsert(updateData);
+        .upsert(updateData, { onConflict: 'id' });
 
       if (error) {
         throw new Error(`Failed to update system settings: ${error.message}`);
@@ -239,7 +245,9 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
+      // Always use ID = 1 for singleton settings
       const updateData = {
+        id: 1,
         query: settings.query,
         max_results: settings.maxResults,
         date_range: settings.dateRange,
@@ -249,7 +257,7 @@ export class SettingsService {
 
       const { error } = await this.supabase
         .from('search_settings')
-        .upsert(updateData);
+        .upsert(updateData, { onConflict: 'id' });
 
       if (error) {
         throw new Error(`Failed to update search settings: ${error.message}`);
