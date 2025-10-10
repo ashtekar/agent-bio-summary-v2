@@ -54,6 +54,16 @@ export default function SettingsPage() {
         const apiSettings = result.data?.settings;
         
         // Transform API response to frontend format
+        // Map summaryLength number to string
+        const summaryLengthReverseMap: { [key: number]: string } = {
+          50: 'short',
+          100: 'medium',
+          150: 'long'
+        };
+        
+        const summaryLengthNum = apiSettings?.systemSettings?.summaryLength || 100;
+        const summaryLengthStr = summaryLengthReverseMap[summaryLengthNum] || 'medium';
+        
         const transformedSettings: Settings = {
           recipients: apiSettings?.recipients?.map((r: any, idx: number) => ({
             id: idx.toString(),
@@ -72,7 +82,7 @@ export default function SettingsPage() {
           relevanceThreshold: apiSettings?.systemSettings?.relevancyThreshold || 0.2,
           keywords: apiSettings?.searchSettings?.query || '',
           scheduleTime: '06:00',
-          summaryLength: apiSettings?.systemSettings?.summaryLength?.toString() || 'medium',
+          summaryLength: summaryLengthStr,
           model: apiSettings?.systemSettings?.llmModel || 'gpt-4o',
           includeImages: true,
           comparisonModel: 'gpt-5',
@@ -117,12 +127,19 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       // Transform frontend settings to API format
+      // Map summaryLength string to number
+      const summaryLengthMap: { [key: string]: number } = {
+        'short': 50,
+        'medium': 100,
+        'long': 150
+      };
+      
       const systemSettings = {
         llmModel: settings.model,
         llmTemperature: settings.temperature,
         llmMaxTokens: settings.maxTokens,
         relevancyThreshold: settings.relevanceThreshold,
-        summaryLength: parseInt(settings.summaryLength) || 100,
+        summaryLength: summaryLengthMap[settings.summaryLength] || 100,
         targetAudience: 'college sophomore',
         includeCitations: true,
         emailTemplate: 'default'
