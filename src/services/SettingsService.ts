@@ -27,10 +27,25 @@ export class SettingsService {
       const { data, error } = await this.supabase
         .from('system_settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) {
         throw new Error(`Failed to fetch system settings: ${error.message}`);
+      }
+
+      // If no settings exist, return defaults
+      if (!data) {
+        console.log('No system settings found in database, returning defaults');
+        return {
+          summaryLength: 100,
+          targetAudience: 'college sophomore',
+          includeCitations: true,
+          emailTemplate: 'default',
+          llmModel: 'gpt-4o',
+          llmTemperature: 0.3,
+          llmMaxTokens: 1000,
+          relevancyThreshold: 0.2
+        };
       }
 
       // Return settings with defaults if not found
@@ -74,10 +89,21 @@ export class SettingsService {
       const { data, error } = await this.supabase
         .from('search_settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) {
         throw new Error(`Failed to fetch search settings: ${error.message}`);
+      }
+
+      // If no settings exist, return defaults
+      if (!data) {
+        console.log('No search settings found in database, returning defaults');
+        return {
+          query: 'synthetic biology biotechnology',
+          maxResults: 10,
+          dateRange: 'd7',
+          sources: ['nature.com', 'science.org', 'biorxiv.org']
+        };
       }
 
       return {
