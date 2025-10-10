@@ -13,13 +13,16 @@ export class TracingWrapper {
     const apiKey = process.env.LANGCHAIN_API_KEY;
     const tracingEnabled = process.env.LANGCHAIN_TRACING_V2 === 'true';
     const workspaceId = process.env.LANGSMITH_WORKSPACE_ID;
+    const orgId = process.env.LANGCHAIN_ORG_ID;
     this.projectName = process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2';
 
     if (apiKey && tracingEnabled) {
       try {
         this.client = new Client({
           apiKey,
-          ...(workspaceId && { workspaceId })
+          // Use org ID for hub operations, workspace ID for tracing
+          ...(orgId && { workspaceId: orgId }),
+          ...(!orgId && workspaceId && { workspaceId })
         });
       } catch (error) {
         console.warn('⚠️ Failed to initialize tracing client:', error);

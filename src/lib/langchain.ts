@@ -1,11 +1,14 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { Client } from 'langsmith';
+import { pull } from 'langchain/hub';
 
 export class LangchainIntegration {
   private client: Client | null;
   private chatModel: ChatOpenAI;
   private prompts: Map<string, PromptTemplate>;
+  private promptCache: Map<string, { prompt: PromptTemplate; timestamp: number }>;
+  private promptCacheTTL: number;
 
   constructor(modelConfig?: {
     modelName?: string;
@@ -20,9 +23,12 @@ export class LangchainIntegration {
     if (apiKey && tracingEnabled) {
       try {
         const workspaceId = process.env.LANGSMITH_WORKSPACE_ID;
+        const orgId = process.env.LANGCHAIN_ORG_ID;
         this.client = new Client({
           apiKey,
-          ...(workspaceId && { workspaceId })
+          // Use org ID for hub operations, workspace ID for tracing
+          ...(orgId && { workspaceId: orgId }),
+          ...(!orgId && workspaceId && { workspaceId })
         });
         console.log(`✅ LangSmith client initialized for project: ${project}`);
       } catch (error) {
@@ -42,15 +48,93 @@ export class LangchainIntegration {
       maxTokens: modelConfig?.maxTokens || 500,
     });
 
-    // Initialize prompts storage
+    // Initialize prompts storage and cache
     this.prompts = new Map();
-    this.initializePrompts();
+    this.promptCache = new Map();
+    this.promptCacheTTL = parseInt(process.env.PROMPT_CACHE_TTL || '600') * 1000; // Convert to ms
+    
+    // Load prompts synchronously (will use local if hub is enabled)
+    // Hub prompts will be loaded on first use with caching
+    this.loadHardcodedPrompts();
   }
 
   /**
-   * Initialize all prompts used by the agent
+   * Ensure prompts are loaded from Hub if configured
+   * Called lazily on first prompt access
    */
-  private initializePrompts(): void {
+  private async ensureHubPromptsLoaded(): Promise<void> {
+    const promptSource = process.env.PROMPT_SOURCE || 'local';
+    
+    // Only load from hub if configured and not already loaded
+    if (promptSource === 'hub' && this.promptCache.size === 0) {
+      console.log('📥 Fetching prompts from LangSmith Hub...');
+      const success = await this.loadPromptsFromHub();
+      if (!success) {
+        console.warn('⚠️  Failed to load prompts from Hub, using fallback local prompts');
+        // Hardcoded prompts already loaded in constructor
+      }
+    }
+  }
+
+  /**
+   * Load prompts from LangSmith Hub with caching
+   */
+  private async loadPromptsFromHub(): Promise<boolean> {
+    const promptVersion = process.env.PROMPT_VERSION || 'latest';
+    const orgId = process.env.LANGCHAIN_ORG_ID;
+    
+    // Map internal names (camelCase) to Hub names (kebab-case)
+    const promptMapping: Record<string, string> = {
+      'summarization': 'summarization',
+      'collation': 'collation',
+      'evaluation': 'evaluation',
+      'collatedEvaluation': 'collated-evaluation'
+    };
+    
+    if (!orgId) {
+      console.error('LANGCHAIN_ORG_ID not set - required for Hub prompts');
+      return false;
+    }
+    
+    try {
+      for (const [internalName, hubName] of Object.entries(promptMapping)) {
+        // Check cache first
+        const cached = this.promptCache.get(internalName);
+        if (cached && (Date.now() - cached.timestamp) < this.promptCacheTTL) {
+          console.log(`  ✓ Using cached prompt: ${internalName}`);
+          this.prompts.set(internalName, cached.prompt);
+          continue;
+        }
+
+        // Fetch from hub using format: agent-bio-summary-v2-{prompt-name}:version
+        // The org ID context is provided by LANGCHAIN_WORKSPACE_ID env var
+        try {
+          const hubPath = `agent-bio-summary-v2-${hubName}:${promptVersion}`;
+          console.log(`  ↓ Fetching: ${hubPath}`);
+          const prompt = await pull<PromptTemplate>(hubPath);
+          
+          // Cache and store using internal name
+          this.promptCache.set(internalName, { prompt, timestamp: Date.now() });
+          this.prompts.set(internalName, prompt);
+          console.log(`  ✓ Loaded: ${internalName}`);
+        } catch (error) {
+          console.error(`  ✗ Failed to fetch ${internalName} from hub:`, error);
+          throw error; // Fail fast if any prompt is missing
+        }
+      }
+      
+      console.log('✅ All prompts loaded from Hub successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to load prompts from Hub:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Load hardcoded prompts as fallback
+   */
+  private loadHardcodedPrompts(): void {
     // Article summarization prompt
     const summarizationPrompt = new PromptTemplate({
       template: `You are an expert in synthetic biology and biotechnology. Create a comprehensive summary of this research article for college sophomores studying biology.
@@ -129,12 +213,16 @@ Provide specific feedback and an overall score.`,
     this.prompts.set('collation', collationPrompt);
     this.prompts.set('evaluation', evaluationPrompt);
     this.prompts.set('collatedEvaluation', collatedEvaluationPrompt);
+    
+    console.log('✅ Loaded 4 hardcoded prompts');
   }
 
   /**
    * Get a prompt template by name
+   * Ensures hub prompts are loaded if configured
    */
-  getPrompt(name: string): PromptTemplate | undefined {
+  async getPrompt(name: string): Promise<PromptTemplate | undefined> {
+    await this.ensureHubPromptsLoaded();
     return this.prompts.get(name);
   }
 
@@ -146,7 +234,7 @@ Provide specific feedback and an overall score.`,
     url: string;
     content: string;
   }): Promise<{ summary: string; tokens: number; cost: number; runId?: string }> {
-    const prompt = this.getPrompt('summarization');
+    const prompt = await this.getPrompt('summarization');
     if (!prompt) {
       throw new Error('Summarization prompt not found');
     }
@@ -205,7 +293,7 @@ Provide specific feedback and an overall score.`,
    * Generate collated summary using Langchain
    */
   async generateCollatedSummary(summaries: string[]): Promise<{ summary: string; tokens: number; cost: number; runId?: string }> {
-    const prompt = this.getPrompt('collation');
+    const prompt = await this.getPrompt('collation');
     if (!prompt) {
       throw new Error('Collation prompt not found');
     }
@@ -258,7 +346,7 @@ Provide specific feedback and an overall score.`,
     overallScore: number;
     feedback: string;
   }> {
-    const prompt = this.getPrompt('evaluation');
+    const prompt = await this.getPrompt('evaluation');
     if (!prompt) {
       throw new Error('Evaluation prompt not found');
     }
@@ -309,7 +397,7 @@ Provide specific feedback and an overall score.`,
     overallScore: number;
     feedback: string;
   }> {
-    const prompt = this.getPrompt('collatedEvaluation');
+    const prompt = await this.getPrompt('collatedEvaluation');
     if (!prompt) {
       throw new Error('Collated evaluation prompt not found');
     }
