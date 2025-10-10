@@ -128,10 +128,20 @@ export default function SettingsPage() {
         emailTemplate: 'default'
       };
 
+      // Transform search settings
+      const searchSettings = {
+        query: settings.keywords,
+        maxResults: settings.maxArticles,
+        dateRange: 'd7', // Could be made configurable
+        sources: settings.searchSites
+          .filter(site => site.active)
+          .map(site => site.domain)
+      };
+
       const response = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ systemSettings })
+        body: JSON.stringify({ systemSettings, searchSettings })
       });
       
       if (response.ok) {
@@ -148,30 +158,85 @@ export default function SettingsPage() {
     }
   }
 
-  function addRecipient() {
+  async function addRecipient() {
     if (!settings || !newRecipient.email || !newRecipient.name) return;
     
-    setSettings({
-      ...settings,
-      recipients: [
-        ...settings.recipients,
-        {
-          id: Date.now().toString(),
-          email: newRecipient.email,
-          name: newRecipient.name,
-          active: true
-        }
-      ]
-    });
-    setNewRecipient({ email: '', name: '' });
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_recipient',
+          recipient: {
+            email: newRecipient.email,
+            name: newRecipient.name,
+            preferences: {
+              frequency: 'daily',
+              format: 'html'
+            }
+          }
+        })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setSettings({
+          ...settings,
+          recipients: [
+            ...settings.recipients,
+            {
+              id: Date.now().toString(),
+              email: newRecipient.email,
+              name: newRecipient.name,
+              active: true
+            }
+          ]
+        });
+        setNewRecipient({ email: '', name: '' });
+        alert('Recipient added successfully!');
+      } else {
+        const result = await response.json();
+        alert(`Failed to add recipient: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error adding recipient:', error);
+      alert('Error adding recipient');
+    }
   }
 
-  function removeRecipient(id: string) {
+  async function removeRecipient(id: string) {
     if (!settings) return;
-    setSettings({
-      ...settings,
-      recipients: settings.recipients.filter(r => r.id !== id)
-    });
+    
+    const recipient = settings.recipients.find(r => r.id === id);
+    if (!recipient) return;
+
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove_recipient',
+          recipient: {
+            email: recipient.email
+          }
+        })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setSettings({
+          ...settings,
+          recipients: settings.recipients.filter(r => r.id !== id)
+        });
+        alert('Recipient removed successfully!');
+      } else {
+        const result = await response.json();
+        alert(`Failed to remove recipient: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error removing recipient:', error);
+      alert('Error removing recipient');
+    }
   }
 
   function toggleRecipient(id: string) {

@@ -205,6 +205,90 @@ export class SettingsService {
   }
 
   /**
+   * Update search settings in Supabase
+   */
+  async updateSearchSettings(settings: Partial<SearchSettings>): Promise<void> {
+    try {
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const updateData = {
+        query: settings.query,
+        max_results: settings.maxResults,
+        date_range: settings.dateRange,
+        sources: settings.sources,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await this.supabase
+        .from('search_settings')
+        .upsert(updateData);
+
+      if (error) {
+        throw new Error(`Failed to update search settings: ${error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Error updating search settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add or update email recipient in Supabase
+   */
+  async upsertEmailRecipient(recipient: EmailRecipient): Promise<void> {
+    try {
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { error } = await this.supabase
+        .from('email_recipients')
+        .upsert({
+          email: recipient.email,
+          name: recipient.name,
+          preferences: recipient.preferences,
+          active: true,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        throw new Error(`Failed to upsert email recipient: ${error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Error upserting email recipient:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete email recipient from Supabase
+   */
+  async deleteEmailRecipient(email: string): Promise<void> {
+    try {
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { error } = await this.supabase
+        .from('email_recipients')
+        .delete()
+        .eq('email', email);
+
+      if (error) {
+        throw new Error(`Failed to delete email recipient: ${error.message}`);
+      }
+
+    } catch (error) {
+      console.error('Error deleting email recipient:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get available OpenAI models
    */
   getAvailableModels(): Array<{
