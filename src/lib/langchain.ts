@@ -53,25 +53,27 @@ export class LangchainIntegration {
     this.promptCache = new Map();
     this.promptCacheTTL = parseInt(process.env.PROMPT_CACHE_TTL || '600') * 1000; // Convert to ms
     
-    // Load prompts synchronously (will use local if hub is enabled)
-    // Hub prompts will be loaded on first use with caching
-    this.loadHardcodedPrompts();
+    // Prompts will be loaded lazily from Hub on first use
+    // No hardcoded fallback - Hub is required
   }
 
   /**
-   * Ensure prompts are loaded from Hub if configured
+   * Ensure prompts are loaded from Hub
    * Called lazily on first prompt access
    */
   private async ensureHubPromptsLoaded(): Promise<void> {
-    const promptSource = process.env.PROMPT_SOURCE || 'local';
+    const promptSource = process.env.PROMPT_SOURCE || 'hub';
     
-    // Only load from hub if configured and not already loaded
-    if (promptSource === 'hub' && this.promptCache.size === 0) {
+    // Load from hub if not already loaded
+    if (this.promptCache.size === 0) {
+      if (promptSource !== 'hub') {
+        throw new Error('PROMPT_SOURCE must be "hub" - local prompts are no longer supported');
+      }
+      
       console.log('📥 Fetching prompts from LangSmith Hub...');
       const success = await this.loadPromptsFromHub();
       if (!success) {
-        console.warn('⚠️  Failed to load prompts from Hub, using fallback local prompts');
-        // Hardcoded prompts already loaded in constructor
+        throw new Error('Failed to load prompts from LangSmith Hub - check LANGCHAIN_ORG_ID and connectivity');
       }
     }
   }
@@ -131,91 +133,6 @@ export class LangchainIntegration {
     }
   }
 
-  /**
-   * Load hardcoded prompts as fallback
-   */
-  private loadHardcodedPrompts(): void {
-    // Article summarization prompt
-    const summarizationPrompt = new PromptTemplate({
-      template: `You are an expert in synthetic biology and biotechnology. Create a comprehensive summary of this research article for college sophomores studying biology.
-
-Article Title: {title}
-Article URL: {url}
-Article Content: {content}
-
-Requirements:
-- Minimum 100 words
-- Focus on synthetic biology relevance
-- Use clear, accessible language
-- Highlight key findings and implications
-- Include any practical applications mentioned
-- Explain technical concepts for college sophomore level
-
-Summary:`,
-      inputVariables: ['title', 'url', 'content'],
-    });
-
-    // Summary collation prompt
-    const collationPrompt = new PromptTemplate({
-      template: `Create a cohesive daily synthetic biology newsletter from these individual article summaries:
-
-{summaries}
-
-Requirements:
-- Create an engaging newsletter format suitable for email
-- Use HTML formatting for email compatibility
-- Include article headings with links to original sources
-- Maintain coherence across all articles
-- Add a call-to-action for feedback at the end
-- Keep it engaging for college sophomore biology students
-
-Newsletter HTML:`,
-      inputVariables: ['summaries'],
-    });
-
-    // Article evaluation prompt
-    const evaluationPrompt = new PromptTemplate({
-      template: `Evaluate the quality of this article summary:
-
-Article Title: {title}
-Article URL: {url}
-Summary: {summary}
-
-Rate the following criteria on a scale of 0-1:
-1. Coherence: Is the summary logically structured and easy to follow?
-2. Accuracy: Does the summary accurately represent the article content?
-3. Completeness: Does the summary cover the key points adequately?
-4. Readability: Is the summary appropriate for college sophomore level?
-
-Provide specific feedback and an overall score.`,
-      inputVariables: ['title', 'url', 'summary'],
-    });
-
-    // Collated summary evaluation prompt
-    const collatedEvaluationPrompt = new PromptTemplate({
-      template: `Evaluate the quality of this collated summary:
-
-Individual Summaries Count: {count}
-Collated Summary: {summary}
-
-Rate the following criteria on a scale of 0-1:
-1. Coherence: Does the summary flow logically across all articles?
-2. Accuracy: Are the individual summaries accurately represented?
-3. Completeness: Are all important articles included?
-4. Readability: Is it appropriate for email newsletter format?
-
-Provide specific feedback and an overall score.`,
-      inputVariables: ['count', 'summary'],
-    });
-
-    // Store prompts
-    this.prompts.set('summarization', summarizationPrompt);
-    this.prompts.set('collation', collationPrompt);
-    this.prompts.set('evaluation', evaluationPrompt);
-    this.prompts.set('collatedEvaluation', collatedEvaluationPrompt);
-    
-    console.log('✅ Loaded 4 hardcoded prompts');
-  }
 
   /**
    * Get a prompt template by name
