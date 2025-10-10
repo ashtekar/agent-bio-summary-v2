@@ -23,7 +23,7 @@ export async function GET() {
     
     if (testPrompt) {
       console.log('✅ Prompt loaded successfully!');
-      console.log(`   Template preview: ${testPrompt.template.substring(0, 100)}...`);
+      console.log(`   Prompt type: ${testPrompt.constructor.name}`);
       console.log('========================================\n');
       
       return NextResponse.json({
@@ -32,6 +32,7 @@ export async function GET() {
         promptVersion: promptVersion,
         orgId: orgId || null,
         promptLoaded: true,
+        promptType: testPrompt.constructor.name,
         message: promptSource === 'hub' 
           ? '✅ Prompts are being loaded from LangSmith Hub!' 
           : '📄 Using local hardcoded prompts (Hub not enabled)'
