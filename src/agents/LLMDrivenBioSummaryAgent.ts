@@ -30,6 +30,7 @@ export class LLMDrivenBioSummaryAgent {
 
     this.context = {
       sessionId: this.generateSessionId(),
+      threadId: initialContext.threadId || `thread_${Date.now()}`, // Use provided threadId or generate
       startTime: new Date(),
       currentStep: 'initialization',
       foundArticles: [],
@@ -60,12 +61,23 @@ export class LLMDrivenBioSummaryAgent {
     try {
       console.log(`Starting LLM-driven BioSummaryAgent execution - Session: ${this.context.sessionId}`);
       
-      // Create initial trace
+      // Create initial trace with thread metadata
       await langchainIntegration.createTrace({
         name: 'llm_driven_bio_summary',
         inputs: this.context,
-        metadata: { sessionId: this.context.sessionId, agentType: 'llm_driven' },
-        tags: ['agent_execution', 'llm_driven']
+        metadata: { 
+          sessionId: this.context.sessionId,
+          threadId: this.context.threadId,
+          agentType: 'llm_driven',
+          runDate: new Date().toISOString().split('T')[0]
+        },
+        tags: [
+          'agent_execution',
+          'llm_driven',
+          'daily-summary',
+          `thread:${this.context.threadId}`,
+          `model:${this.context.systemSettings.llmModel}`
+        ]
       });
 
       const result = await this.executeWithLLM();

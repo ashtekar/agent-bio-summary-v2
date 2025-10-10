@@ -31,14 +31,32 @@ export default function DailySummaries() {
 
   async function loadSummaries() {
     try {
-      // TODO: Replace with actual API call
-      setSummaries([
-        { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
-        { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
-        { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
-        { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
-        { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
-      ]);
+      // Fetch threads from API
+      const response = await fetch('/api/threads?limit=20');
+      
+      if (response.ok) {
+        const result = await response.json();
+        const threads = result.data || [];
+        
+        // Transform threads to summaries
+        const transformedSummaries = threads.map((thread: any) => ({
+          id: thread.id,
+          date: thread.run_date,
+          articlesCount: thread.articles_processed || 0,
+          status: thread.email_sent ? 'Email Sent' : thread.status === 'failed' ? 'Failed' : 'Running'
+        }));
+        
+        setSummaries(transformedSummaries);
+      } else {
+        // Fallback to mock data
+        setSummaries([
+          { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
+          { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
+          { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
+          { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
+          { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
+        ]);
+      }
     } catch (error) {
       console.error('Failed to load summaries:', error);
     } finally {

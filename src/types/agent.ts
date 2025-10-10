@@ -6,6 +6,7 @@ export interface AgentContext {
   
   // Runtime context
   sessionId: string;
+  threadId: string; // LangSmith thread ID for grouping all traces
   startTime: Date;
   currentStep: string;
   
@@ -86,5 +87,24 @@ export interface ToolResult {
     cost: number;
     tokens: number;
     [key: string]: any; // Allow additional metadata fields for tool-specific data
+  };
+}
+
+export interface Thread {
+  id: string; // UUID thread ID
+  run_date: string; // Date of the daily summary run (YYYY-MM-DD)
+  status: 'running' | 'completed' | 'failed';
+  articles_found: number;
+  articles_processed: number;
+  email_sent: boolean;
+  langsmith_url?: string; // Direct link to LangSmith trace
+  error_message?: string;
+  started_at: Date;
+  completed_at?: Date;
+  metadata?: {
+    sessionId: string;
+    model: string;
+    relevancyThreshold: number;
+    [key: string]: any;
   };
 }

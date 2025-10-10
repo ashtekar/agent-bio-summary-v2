@@ -31,22 +31,61 @@ export default function Dashboard() {
 
   async function loadDashboardData() {
     try {
-      // TODO: Replace with actual API call
-      // Simulate data for now
-      setStats({
-        lastRun: '10 hours ago',
-        articlesFound: 2,
-        summariesGenerated: 23,
-        nextScheduledRun: '15th October 2025 at 8:00 AM'
-      });
+      // Fetch recent threads from API
+      const response = await fetch('/api/threads?limit=5');
+      
+      if (response.ok) {
+        const result = await response.json();
+        const threads = result.data || [];
+        
+        // Transform threads to recent summaries
+        const summaries = threads.map((thread: any) => ({
+          id: thread.id,
+          date: thread.run_date,
+          articlesCount: thread.articles_processed || 0,
+          status: thread.status
+        }));
+        
+        setRecentSummaries(summaries);
+        
+        // Calculate stats from threads
+        const lastThread = threads[0];
+        if (lastThread) {
+          const lastRunDate = new Date(lastThread.started_at);
+          const hoursAgo = Math.floor((Date.now() - lastRunDate.getTime()) / (1000 * 60 * 60));
+          
+          setStats({
+            lastRun: `${hoursAgo} hours ago`,
+            articlesFound: lastThread.articles_found || 0,
+            summariesGenerated: threads.filter((t: any) => t.status === 'completed').length,
+            nextScheduledRun: '15th October 2025 at 8:00 AM'
+          });
+        } else {
+          // No threads yet - use defaults
+          setStats({
+            lastRun: 'Never',
+            articlesFound: 0,
+            summariesGenerated: 0,
+            nextScheduledRun: '15th October 2025 at 8:00 AM'
+          });
+        }
+      } else {
+        // Fallback to mock data if API fails
+        setStats({
+          lastRun: '10 hours ago',
+          articlesFound: 2,
+          summariesGenerated: 23,
+          nextScheduledRun: '15th October 2025 at 8:00 AM'
+        });
 
-      setRecentSummaries([
-        { id: '1', date: '2025-10-09', articlesCount: 10, status: 'completed' },
-        { id: '2', date: '2025-10-08', articlesCount: 8, status: 'completed' },
-        { id: '3', date: '2025-10-07', articlesCount: 5, status: 'completed' },
-        { id: '4', date: '2025-10-06', articlesCount: 12, status: 'completed' },
-        { id: '5', date: '2025-10-05', articlesCount: 7, status: 'completed' },
-      ]);
+        setRecentSummaries([
+          { id: '1', date: '2025-10-09', articlesCount: 10, status: 'completed' },
+          { id: '2', date: '2025-10-08', articlesCount: 8, status: 'completed' },
+          { id: '3', date: '2025-10-07', articlesCount: 5, status: 'completed' },
+          { id: '4', date: '2025-10-06', articlesCount: 12, status: 'completed' },
+          { id: '5', date: '2025-10-05', articlesCount: 7, status: 'completed' },
+        ]);
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {

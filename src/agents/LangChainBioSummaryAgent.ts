@@ -23,6 +23,7 @@ export class LangChainBioSummaryAgent {
       systemSettings: initialContext.systemSettings!,
       recipients: initialContext.recipients!,
       sessionId: `langchain_session_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      threadId: initialContext.threadId || `thread_${Date.now()}`, // Use provided threadId or generate
       startTime: new Date(),
       currentStep: 'initialization',
       foundArticles: [],
@@ -109,6 +110,7 @@ export class LangChainBioSummaryAgent {
       console.log('🤖 Invoking LangChain AgentExecutor...');
       console.log('Agent input:', agentInput);
       console.log('Agent config:', {
+        threadId: this.context.threadId,
         maxIterations: this.executor.maxIterations,
         tools: allLangChainTools.map(t => t.name)
       });
@@ -116,6 +118,23 @@ export class LangChainBioSummaryAgent {
       const result = await this.executor.invoke(
         { input: agentInput },
         {
+          configurable: {
+            thread_id: this.context.threadId,
+            run_name: `Daily Summary ${new Date().toISOString().split('T')[0]}`
+          },
+          runId: this.parentRunId,
+          tags: [
+            'daily-summary',
+            `thread:${this.context.threadId}`,
+            `model:${this.context.systemSettings.llmModel}`,
+            `date:${new Date().toISOString().split('T')[0]}`
+          ],
+          metadata: {
+            threadId: this.context.threadId,
+            sessionId: this.context.sessionId,
+            runDate: new Date().toISOString().split('T')[0],
+            relevancyThreshold: this.context.systemSettings.relevancyThreshold
+          },
           callbacks: [
             {
               handleToolStart: (tool, input) => {
