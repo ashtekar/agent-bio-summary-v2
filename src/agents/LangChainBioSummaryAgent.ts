@@ -122,7 +122,7 @@ export class LangChainBioSummaryAgent {
             thread_id: this.context.threadId,
             run_name: `Daily Summary ${new Date().toISOString().split('T')[0]}`
           },
-          runId: this.parentRunId,
+          runId: this.parentRunId ?? undefined,
           tags: [
             'daily-summary',
             `thread:${this.context.threadId}`,

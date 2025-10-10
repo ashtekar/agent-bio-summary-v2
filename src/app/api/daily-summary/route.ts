@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
           searchQuery: context.searchSettings.query,
           maxResults: context.searchSettings.maxResults,
           sources: context.searchSettings.sources,
-          recipients: context.recipients.map(r => r.email)
+          recipients: context.recipients.map((r: { email: string }) => r.email)
         }
       });
       
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         // Get LangSmith URL if available
         const orgId = process.env.LANGCHAIN_ORG_ID;
         const projectName = process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2';
-        const langsmithUrl = orgId 
+        const langsmithUrl = orgId && thread
           ? `https://smith.langchain.com/o/${orgId}/projects/p/${projectName}?timeModel=absolute&startTime=${thread.started_at.toISOString()}`
           : undefined;
 

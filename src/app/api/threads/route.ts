@@ -45,31 +45,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * GET /api/threads/:id - Get specific thread by ID
- */
-export async function GET_BY_ID(threadId: string): Promise<NextResponse> {
-  try {
-    const thread = await threadService.getThread(threadId);
-    
-    if (!thread) {
-      return NextResponse.json({
-        success: false,
-        error: 'Thread not found'
-      }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: thread
-    });
-
-  } catch (error) {
-    console.error('Failed to fetch thread:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch thread'
-    }, { status: 500 });
-  }
-}
-
+// Note: To get a specific thread by ID, create a dynamic route at:
+// src/app/api/threads/[id]/route.ts
+// For now, use query params: /api/threads?run_date=YYYY-MM-DD

@@ -42,6 +42,7 @@ export const createMockAgentContext = (overrides?: Partial<AgentContext>): Agent
   systemSettings: createMockSystemSettings(),
   recipients: [createMockEmailRecipient()],
   sessionId: 'test-session-123',
+  threadId: 'test-thread-123',
   startTime: new Date(),
   currentStep: 'initialization',
   foundArticles: [],
