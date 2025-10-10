@@ -116,20 +116,33 @@ export default function SettingsPage() {
     
     setSaving(true);
     try {
+      // Transform frontend settings to API format
+      const systemSettings = {
+        llmModel: settings.model,
+        llmTemperature: settings.temperature,
+        llmMaxTokens: settings.maxTokens,
+        relevancyThreshold: settings.relevanceThreshold,
+        summaryLength: parseInt(settings.summaryLength) || 100,
+        targetAudience: 'college sophomore',
+        includeCitations: true,
+        emailTemplate: 'default'
+      };
+
       const response = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+        body: JSON.stringify({ systemSettings })
       });
       
       if (response.ok) {
         alert('Settings saved successfully!');
       } else {
-        alert('Failed to save settings');
+        const result = await response.json();
+        alert(`Failed to save settings: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Error saving settings');
+      alert('Error saving settings: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setSaving(false);
     }

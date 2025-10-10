@@ -22,7 +22,7 @@ export default function Navigation() {
               <Link
                 key={item.id}
                 href={item.href}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
+                className={`px-6 py-3 text-base font-medium transition-colors ${
                   isActive
                     ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-800'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
