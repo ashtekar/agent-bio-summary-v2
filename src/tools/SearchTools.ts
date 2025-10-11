@@ -29,6 +29,7 @@ export class SearchTools {
 
   /**
    * Search for articles using Google Custom Search API
+   * Implements pagination to fetch up to 100 results (Google API limit: 10 per request, max 100 total)
    */
   async searchWeb(searchSettings: SearchSettings): Promise<ToolResult> {
     return this.tracing.traceToolExecution(
@@ -40,25 +41,67 @@ export class SearchTools {
           throw new Error('Google Custom Search API credentials not configured');
         }
 
-        const searchUrl = new URL('https://www.googleapis.com/customsearch/v1');
-        searchUrl.searchParams.set('key', this.googleApiKey);
-        searchUrl.searchParams.set('cx', this.searchEngineId);
-        searchUrl.searchParams.set('q', searchSettings.query);
-        searchUrl.searchParams.set('num', searchSettings.maxResults.toString());
+        // Google Custom Search API limits:
+        // - 10 results per request (max)
+        // - 100 results total (max)
+        const maxResultsPerRequest = 10;
+        const absoluteMaxResults = 100;
+        const targetResults = Math.min(searchSettings.maxResults, absoluteMaxResults);
+        const numRequests = Math.ceil(targetResults / maxResultsPerRequest);
         
-        if (searchSettings.dateRange) {
-          searchUrl.searchParams.set('dateRestrict', searchSettings.dateRange);
-        }
+        let allResults: any[] = [];
+        
+        // Make paginated requests
+        for (let i = 0; i < numRequests; i++) {
+          const startIndex = i * maxResultsPerRequest + 1; // Google API uses 1-based indexing
+          const resultsToFetch = Math.min(maxResultsPerRequest, targetResults - allResults.length);
+          
+          const searchUrl = new URL('https://www.googleapis.com/customsearch/v1');
+          searchUrl.searchParams.set('key', this.googleApiKey);
+          searchUrl.searchParams.set('cx', this.searchEngineId);
+          searchUrl.searchParams.set('q', searchSettings.query);
+          searchUrl.searchParams.set('num', resultsToFetch.toString());
+          searchUrl.searchParams.set('start', startIndex.toString());
+          
+          if (searchSettings.dateRange) {
+            searchUrl.searchParams.set('dateRestrict', searchSettings.dateRange);
+          }
 
-        const response = await fetch(searchUrl.toString());
-        
-        if (!response.ok) {
-          throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText}`);
-        }
+          console.log(`Fetching results ${startIndex} to ${startIndex + resultsToFetch - 1}...`);
+          
+          const response = await fetch(searchUrl.toString());
+          
+          if (!response.ok) {
+            // If pagination fails (e.g., no more results), return what we have so far
+            if (allResults.length > 0) {
+              console.warn(`Pagination request ${i + 1} failed, returning ${allResults.length} results collected so far`);
+              break;
+            }
+            throw new Error(`Google Custom Search API error: ${response.status} ${response.statusText}`);
+          }
 
-        const data = await response.json();
+          const data = await response.json();
+          
+          if (!data.items || data.items.length === 0) {
+            console.log(`No more results found after ${allResults.length} results`);
+            break;
+          }
+          
+          allResults = allResults.concat(data.items);
+          console.log(`Collected ${allResults.length} results so far...`);
+          
+          // Stop if we've reached the target or there are no more results
+          if (allResults.length >= targetResults || data.items.length < resultsToFetch) {
+            break;
+          }
+          
+          // Small delay to respect rate limits (optional but polite)
+          if (i < numRequests - 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
         
-        if (!data.items) {
+        if (allResults.length === 0) {
           console.log('No search results found');
           return {
             success: true,
@@ -66,7 +109,8 @@ export class SearchTools {
           };
         }
 
-        const searchResults = data.items.map((item: any) => ({
+        console.log(`Total results collected: ${allResults.length}`);
+        const searchResults = allResults.map((item: any) => ({
           id: this.generateArticleId(item.link),
           title: item.title,
           url: item.link,

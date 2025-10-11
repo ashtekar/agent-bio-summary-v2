@@ -112,7 +112,7 @@ export class SettingsService {
 
       return {
         query: data?.query || 'synthetic biology biotechnology',
-        maxResults: data?.max_results || 10,
+        maxResults: Math.min(data?.max_results || 10, 100), // Cap at 100 (Google API limit)
         dateRange: data?.date_range || 'd7',
         sources: data?.sources || ['nature.com', 'science.org', 'biorxiv.org']
       };
@@ -249,7 +249,7 @@ export class SettingsService {
       const updateData = {
         id: 1,
         query: settings.query,
-        max_results: settings.maxResults,
+        max_results: settings.maxResults ? Math.min(settings.maxResults, 100) : undefined, // Cap at 100 (Google API limit)
         date_range: settings.dateRange,
         sources: settings.sources,
         updated_at: new Date().toISOString()

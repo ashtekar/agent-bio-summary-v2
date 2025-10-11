@@ -458,11 +458,16 @@ export default function SettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-slate-300 text-sm mb-2">Max Articles</label>
+                <label className="block text-slate-300 text-sm mb-2">Max Articles (max: 100)</label>
                 <input
                   type="number"
+                  min="1"
+                  max="100"
                   value={settings.maxArticles}
-                  onChange={(e) => setSettings({ ...settings, maxArticles: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const value = Math.min(100, Math.max(1, parseInt(e.target.value) || 1));
+                    setSettings({ ...settings, maxArticles: value });
+                  }}
                   className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
                 />
               </div>
