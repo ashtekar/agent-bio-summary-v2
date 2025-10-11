@@ -11,6 +11,7 @@ import { ProcessingTools } from './ProcessingTools';
 import { SummaryTools } from './SummaryTools';
 import { EmailTools } from './EmailTools';
 import { SearchSettings, EmailRecipient } from '@/types/agent';
+import { toolStateManager } from './ToolState';
 
 // Initialize tool instances
 const searchTools = new SearchTools();
@@ -18,15 +19,31 @@ const processingTools = new ProcessingTools();
 const summaryTools = new SummaryTools();
 const emailTools = new EmailTools();
 
+// Session ID for the current execution (will be set by agent)
+let currentSessionId: string | null = null;
+
+export function setToolSessionId(sessionId: string) {
+  currentSessionId = sessionId;
+}
+
+export function getToolSessionId(): string {
+  if (!currentSessionId) {
+    // Fallback for legacy usage
+    currentSessionId = `session_${Date.now()}`;
+  }
+  return currentSessionId;
+}
+
 /**
  * SEARCH TOOL: searchWeb
+ * Stores results in shared state to avoid token limits when passing to next tool
  */
 export const searchWebTool = new DynamicStructuredTool({
   name: 'searchWeb',
-  description: 'Search for articles using Google Custom Search API based on search settings. Returns search results with titles, URLs, snippets, and metadata.',
+  description: 'Search for articles using Google Custom Search API. Results are automatically stored in state for the next tool. Returns a summary of found articles.',
   schema: z.object({
     query: z.string().describe('Search query for synthetic biology articles'),
-    maxResults: z.number().default(10).describe('Maximum number of search results to return'),
+    maxResults: z.number().default(10).describe('Maximum number of search results to return (max: 100)'),
     dateRange: z.string().default('d7').describe('Date range for search results (e.g., d7 for last 7 days)'),
     sources: z.array(z.string()).default(['nature.com', 'science.org', 'biorxiv.org']).describe('Array of source domains to search')
   }),
@@ -39,32 +56,70 @@ export const searchWebTool = new DynamicStructuredTool({
     };
     
     const result = await searchTools.searchWeb(searchSettings);
+    
+    if (result.success && result.data) {
+      // Store search results in state for next tool
+      const sessionId = getToolSessionId();
+      toolStateManager.updateState(sessionId, { 
+        searchResults: result.data,
+        metadata: {
+          query: input.query,
+          totalResults: result.data.length,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      // Return summary instead of full results
+      return JSON.stringify({
+        success: true,
+        message: `Found ${result.data.length} articles. Results stored in state. Use extractScoreAndStoreArticles to process them.`,
+        count: result.data.length,
+        preview: result.data.slice(0, 3).map((r: any) => ({ title: r.title, url: r.url }))
+      });
+    }
+    
     return JSON.stringify(result);
   }
 });
 
 /**
  * COMBINED TOOL: extractScoreAndStoreArticles (PREFERRED)
+ * Reads search results from shared state to avoid JSON payload size issues
  */
 export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
   name: 'extractScoreAndStoreArticles',
-  description: 'OPTIMIZED COMBINED TOOL: Extract article content, score for relevancy, and store in database. This is the PREFERRED tool that combines three operations (extract, score, store) into one efficient call to reduce latency and API costs. Use this instead of calling extractArticles, scoreRelevancy, and storeArticles separately.',
+  description: 'OPTIMIZED COMBINED TOOL: Extract article content, score for relevancy, and store in database. Automatically reads search results from state (populated by searchWeb). Combines three operations (extract, score, store) into one efficient call.',
   schema: z.object({
-    searchResults: z.array(z.object({
-      id: z.string(),
-      title: z.string(),
-      url: z.string(),
-      snippet: z.string().optional(),
-      publishedDate: z.string().optional(),
-      source: z.string().optional()
-    })).describe('Array of search results from searchWeb to process'),
     relevancyThreshold: z.number().default(0.2).describe('Minimum relevancy score threshold (0-1 scale). Default: 0.2')
   }),
   func: async (input) => {
+    // Read search results from state
+    const sessionId = getToolSessionId();
+    const state = toolStateManager.getState(sessionId);
+    
+    if (!state.searchResults || state.searchResults.length === 0) {
+      return JSON.stringify({
+        success: false,
+        error: 'No search results found in state. Call searchWeb first.'
+      });
+    }
+    
+    console.log(`Processing ${state.searchResults.length} search results from state`);
+    
     const result = await searchTools.extractScoreAndStoreArticles(
-      input.searchResults,
+      state.searchResults,
       input.relevancyThreshold
     );
+    
+    // Store processed articles in state
+    if (result.success && result.data) {
+      toolStateManager.updateState(sessionId, {
+        extractedArticles: result.data,
+        scoredArticles: result.data,
+        storedArticles: result.data
+      });
+    }
+    
     return JSON.stringify(result);
   }
 });

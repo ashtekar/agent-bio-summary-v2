@@ -6,9 +6,10 @@
 import { AgentExecutor, createOpenAIToolsAgent } from 'langchain/agents';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
-import { allLangChainTools } from '@/tools/LangChainTools';
+import { allLangChainTools, setToolSessionId } from '@/tools/LangChainTools';
 import { AgentContext, ToolResult } from '@/types/agent';
 import { langchainIntegration } from '@/lib/langchain';
+import { toolStateManager } from '@/tools/ToolState';
 
 export class LangChainBioSummaryAgent {
   private context: AgentContext;
@@ -83,6 +84,9 @@ export class LangChainBioSummaryAgent {
   async execute(): Promise<ToolResult> {
     try {
       console.log(`Starting LangChain agent execution - Session: ${this.context.sessionId}`);
+      
+      // Set session ID for tools to access shared state
+      setToolSessionId(this.context.sessionId);
       
       // Create parent trace for hierarchical tracking
       this.parentRunId = await langchainIntegration.createTrace({
@@ -170,6 +174,9 @@ export class LangChainBioSummaryAgent {
         });
       }
 
+      // Clean up tool state
+      toolStateManager.clearState(this.context.sessionId);
+
       // Process and return result
       return this.processAgentResult(result);
 
@@ -183,6 +190,9 @@ export class LangChainBioSummaryAgent {
           error: error instanceof Error ? error.message : String(error)
         });
       }
+
+      // Clean up tool state even on error
+      toolStateManager.clearState(this.context.sessionId);
 
       this.context.errors.push(error as Error);
       return {
@@ -223,13 +233,13 @@ ${recipientsInfo}
 
 Task:
 1. Search for articles using searchWeb
-2. Use extractScoreAndStoreArticles with relevancyThreshold=${relevancyThreshold} to efficiently process ALL search results in one call
+2. Use extractScoreAndStoreArticles with relevancyThreshold=${relevancyThreshold} - NOTE: searchResults are automatically read from state, just pass the threshold
 3. Summarize articles (MAX 2 per call) using summarizeArticle - ONLY summarize articles that passed the relevancy threshold
 4. Collate summaries into newsletter using collateSummary
 5. Send email to ALL recipients listed above using sendEmail
 
 IMPORTANT: 
-- Use extractScoreAndStoreArticles after searchWeb with relevancyThreshold=${relevancyThreshold}
+- After searchWeb, call extractScoreAndStoreArticles with ONLY relevancyThreshold (searchResults are read from state automatically)
 - Include ALL ${recipients.length} recipient(s) in the sendEmail call
 - Only summarize articles with relevancyScore >= ${relevancyThreshold}`;
   }
@@ -249,7 +259,8 @@ Your task is to:
 5. Send the final summary to specified email recipients
 
 TOOL OPTIMIZATION:
-- PREFERRED: Use 'extractScoreAndStoreArticles' after searchWeb - combines extract + score + store in ONE efficient call
+- PREFERRED: Use 'extractScoreAndStoreArticles' after searchWeb - automatically reads search results from state, just pass relevancyThreshold
+- searchWeb stores results in state automatically - DO NOT try to pass searchResults to the next tool
 - LEGACY: Individual tools (extractArticles, scoreRelevancy, storeArticles) available for debugging
 
 Key requirements:
