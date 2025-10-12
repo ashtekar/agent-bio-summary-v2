@@ -87,18 +87,27 @@ graph TB
 ## 🛠️ Tool Ecosystem
 
 ### **Search & Discovery**
-- **`searchWeb`**: Intelligent web search using Google Custom Search API
-- **`extractArticles`**: Article extraction with time window and source filtering
-- **`scoreRelevancy`**: Article filtering with relevance scoring for synthetic biology content
+- **`searchWeb`**: Google Custom Search API with pagination (up to 100 results via 10 paginated requests)
+  - Automatically stores results in session state
+  - Returns lightweight summary to avoid token limits
+  - Implements rate limiting and graceful fallback
+- **`extractScoreAndStoreArticles`**: **PREFERRED** - Combined tool that reads from state
+  - Extracts full article content from URLs
+  - Scores articles for synthetic biology relevancy
+  - Stores relevant articles (score >= threshold) in database
+  - Single efficient operation instead of three separate tools
 
-### **Processing & Storage**
-- **`storeArticles`**: Database storage with relevance threshold filtering (max 10 articles)
+### **Legacy Tools** (Individual Operations)
+- **`extractArticles`**: Extract full content from URLs (use combined tool instead)
+- **`scoreRelevancy`**: Score articles for relevance (use combined tool instead)
+- **`storeArticles`**: Database storage (use combined tool instead)
+
+### **Content Generation**
 - **`summarizeArticle`**: Individual article summarization with quality requirements
 - **`collateSummary`**: Intelligent summary combination with HTML formatting
 
 ### **Delivery & Communication**
 - **`sendEmail`**: Professional email delivery via Resend.io with HTML templates
-- **`trackPerformance`**: Execution monitoring and performance metrics
 
 
 ## 📊 Performance Characteristics
@@ -107,6 +116,31 @@ graph TB
 - **Cost**: $0.02-0.50 per execution (configurable via model selection)
 - Evaluation overhead: +$0.20/month for quality tracking (~10 articles/day)
 
+
+## 🧩 State Management Architecture
+
+### **Session-Based Tool State** ✅
+- **Purpose**: Share large data between tools without exceeding token limits
+- **Implementation**: In-memory state manager with session isolation
+- **Benefits**: 
+  - Avoids JSON truncation errors when passing 100+ search results
+  - Reduces LLM token usage (no need to copy-paste large payloads)
+  - Faster execution (no serialization overhead)
+- **Lifecycle**: Created at agent start → populated by tools → cleared at completion
+- **Isolation**: Each session (daily run) has independent state
+
+### **Data Flow**
+```
+searchWeb → stores 100 results in state → returns "Found 100 articles"
+         ↓
+extractScoreAndStore → reads 100 results from state → processes them
+```
+
+### **Search API Limits**
+- **Google Custom Search**: 10 results per request, 100 results maximum
+- **Pagination**: Automatic (up to 10 requests to fetch 100 results)
+- **UI Validation**: Max articles capped at 100 with client-side validation
+- **Backend Validation**: Settings service enforces 100 limit when reading/writing
 
 ## 🔍 Observability & Quality Tracking
 

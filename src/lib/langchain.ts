@@ -90,7 +90,8 @@ export class LangchainIntegration {
       'summarization': 'summarization',
       'collation': 'collation',
       'evaluation': 'evaluation',
-      'collatedEvaluation': 'collated-evaluation'
+      'collatedEvaluation': 'collated-evaluation',
+      'orchestration': 'orchestration'
     };
     
     if (!orgId) {

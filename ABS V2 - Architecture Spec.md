@@ -28,6 +28,7 @@ graph TB
         PROCESSING_TOOLS[ProcessingTools]
         SUMMARY_TOOLS[SummaryTools]
         EMAIL_TOOLS[EmailTools]
+        TOOL_STATE[("Tool State Manager")]
     end
     
     subgraph "External Services"
@@ -58,6 +59,8 @@ graph TB
     LLM_AGENT --> EMAIL_TOOLS
     
     SEARCH_TOOLS --> GOOGLE_SEARCH
+    SEARCH_TOOLS --> TOOL_STATE
+    PROCESSING_TOOLS --> TOOL_STATE
     PROCESSING_TOOLS --> SUPABASE
     SUMMARY_TOOLS --> LANGCHAIN
     EMAIL_TOOLS --> RESEND
@@ -286,7 +289,7 @@ graph LR
 - Error recovery and retry mechanisms
 
 ### **4. External Service Integration**
-- Google Custom Search for article discovery
+- Google Custom Search for article discovery (with pagination support)
 - Supabase for data persistence and model configuration
 - Resend.io for email delivery
 - Langchain for advanced LLM operations
@@ -297,7 +300,14 @@ graph LR
 - Fallback to default settings if database unavailable
 - Support for multiple OpenAI models (GPT-4o, GPT-4o-mini, etc.)
 
-### **6. Monitoring & Observability**
+### **6. State Management for Tools**
+- Session-based in-memory state cache
+- Enables data sharing between tools without token overhead
+- Prevents JSON truncation errors with large payloads (100+ search results)
+- Automatic cleanup on completion/error
+- Isolated state per execution session
+
+### **7. Monitoring & Observability**
 - Comprehensive logging at each step
 - Session tracking and execution metrics
 - Error tracking and recovery logging
@@ -353,4 +363,79 @@ Quality Scores → Annotations (Linked to Traces)
 - ✅ Automatic parent-child linking via LangChain Agent
 - ✅ Prompt versioning and A/B testing (Week 4)
 
-This architecture provides a robust, intelligent, and fully observable solution for automated bio summary generation using LLM-driven tool calling with comprehensive quality tracking.
+## 🗂️ State Management Pattern
+
+### Problem Statement
+LangChain tools are stateless by design. When the LLM needs to pass data between tools, it must serialize the data as JSON in function arguments. With 100 search results, this creates a ~14KB payload that exceeds token limits, causing JSON truncation and parsing errors.
+
+### Solution: Session-Based State Cache
+
+**Architecture:**
+```typescript
+ToolStateManager (Singleton)
+├── Session Map: { sessionId → ToolState }
+│   ├── "session_123": {
+│   │     searchResults: [100 articles],
+│   │     extractedArticles: [...],
+│   │     summaries: [...]
+│   │   }
+│   └── "session_456": { ... }
+└── Lifecycle: 
+    ├── Created: Agent start (setToolSessionId)
+    ├── Used: Tools read/write during execution
+    └── Destroyed: Agent completion (clearState)
+```
+
+**Data Flow:**
+```
+1. searchWeb(query, maxResults: 100)
+   ├── Fetches 100 results via pagination
+   ├── Stores in state: toolStateManager.updateState(sessionId, { searchResults })
+   └── Returns: { count: 100, message: "Found 100 articles" } ← Small payload
+
+2. LLM sees: "Found 100 articles in state"
+   └── Calls: extractScoreAndStoreArticles(relevancyThreshold: 0.8) ← Tiny payload
+
+3. extractScoreAndStoreArticles()
+   ├── Reads: state.searchResults (100 articles)
+   ├── Processes all 100 articles
+   └── Stores results back in state
+```
+
+**Benefits:**
+- ✅ Eliminates JSON truncation errors
+- ✅ Reduces token usage (LLM doesn't re-serialize large arrays)
+- ✅ Faster execution (no JSON parsing overhead)
+- ✅ Session isolation (parallel runs don't interfere)
+- ✅ Automatic cleanup (no memory leaks)
+
+**Trade-offs:**
+- ⚠️ In-memory only (lost on server restart)
+- ⚠️ Not shared across Vercel instances (OK for single-instance deployments)
+- ⚠️ Additional complexity (state management layer)
+
+### Google Custom Search API Pagination
+
+**Constraints:**
+- Maximum 10 results per request
+- Maximum 100 results total (API hard limit)
+
+**Implementation:**
+```typescript
+// User sets: maxResults = 100
+// System makes 10 paginated requests:
+for (let i = 0; i < 10; i++) {
+  fetch(`...&num=10&start=${i * 10 + 1}`)
+  // Request 1: results 1-10
+  // Request 2: results 11-20
+  // ...
+  // Request 10: results 91-100
+}
+```
+
+**Validation Layers:**
+1. **UI**: `<input max="100" />` + JavaScript validation
+2. **Backend**: `Math.min(dbValue, 100)` when reading from Supabase
+3. **API**: SearchTools caps pagination at 100
+
+This architecture provides a robust, intelligent, and fully observable solution for automated bio summary generation using LLM-driven tool calling with comprehensive quality tracking and efficient state management.

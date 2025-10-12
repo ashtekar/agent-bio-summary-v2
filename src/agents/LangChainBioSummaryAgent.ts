@@ -55,8 +55,8 @@ export class LangChainBioSummaryAgent {
    * Initialize the agent executor
    */
   private async initializeAgent(): Promise<void> {
-    // Get system prompt
-    const systemPromptTemplate = this.getSystemPromptTemplate();
+    // Get system prompt (from Hub or fallback)
+    const systemPromptTemplate = await this.getSystemPromptTemplate();
     
     // Create OpenAI Tools Agent (newer, more reliable than Functions Agent)
     const agent = await createOpenAIToolsAgent({
@@ -245,9 +245,29 @@ IMPORTANT:
   }
 
   /**
-   * Get system prompt template
+   * Get system prompt template from LangSmith Hub
    */
-  private getSystemPromptTemplate(): ChatPromptTemplate {
+  private async getSystemPromptTemplate(): Promise<ChatPromptTemplate> {
+    try {
+      // Try to load orchestration prompt from Hub
+      const orchestrationPrompt = await langchainIntegration.getPrompt('orchestration');
+      
+      if (orchestrationPrompt) {
+        console.log('✅ Using orchestration prompt from Hub');
+        // The Hub prompt should already be a ChatPromptTemplate with proper structure
+        // If it's a simple PromptTemplate, we need to convert it
+        return ChatPromptTemplate.fromMessages([
+          ['system', orchestrationPrompt.template],
+          ['human', '{input}'],
+          new MessagesPlaceholder({ variableName: 'agent_scratchpad' })
+        ]);
+      }
+    } catch (error) {
+      console.warn('Failed to load orchestration prompt from Hub, using hardcoded fallback:', error);
+    }
+    
+    // Fallback to hardcoded prompt
+    console.log('Using hardcoded orchestration prompt (fallback)');
     return ChatPromptTemplate.fromMessages([
       ['system', `You are an expert AI agent for generating daily synthetic biology summaries.
 

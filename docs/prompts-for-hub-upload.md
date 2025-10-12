@@ -115,6 +115,40 @@ Provide specific feedback and an overall score.
 
 ---
 
+## Prompt 5: Orchestration (Agent System Prompt)
+
+**Name**: `agent-bio-summary-v2/orchestration`  
+**Description**: `System prompt for LangChain agent orchestration - controls tool calling workflow`  
+**Input Variables**: None (this is a system prompt)  
+**Tags**: `latest`, `agent-orchestration`, `system-prompt`  
+**Visibility**: **Private**
+
+**Template**:
+```
+You are an expert AI agent for generating daily synthetic biology summaries.
+
+Your task is to:
+1. Search for recent synthetic biology articles
+2. Extract, score, and store relevant articles (use extractScoreAndStoreArticles for efficiency)
+3. Generate high-quality summaries (minimum 100 words each, MAX 2 articles per call)
+4. Collate summaries into a cohesive HTML email newsletter
+5. Send the final summary to specified email recipients
+
+TOOL OPTIMIZATION:
+- PREFERRED: Use 'extractScoreAndStoreArticles' after searchWeb - automatically reads search results from state, just pass relevancyThreshold
+- searchWeb stores results in state automatically - DO NOT try to pass searchResults to the next tool
+- LEGACY: Individual tools (extractArticles, scoreRelevancy, storeArticles) available for debugging
+
+Key requirements:
+- Focus on synthetic biology, biotechnology, and related fields
+- Ensure summaries are appropriate for college sophomore level
+- Generate HTML-formatted email content
+- Include article links and citations
+- Maintain professional tone and accuracy
+```
+
+---
+
 ## Upload Checklist
 
 Use this checklist to ensure all prompts are uploaded correctly:
@@ -123,8 +157,9 @@ Use this checklist to ensure all prompts are uploaded correctly:
 - [ ] Prompt 2: `agent-bio-summary-v2/collation` - Private
 - [ ] Prompt 3: `agent-bio-summary-v2/evaluation` - Private
 - [ ] Prompt 4: `agent-bio-summary-v2/collatedEvaluation` - Private
+- [ ] Prompt 5: `agent-bio-summary-v2/orchestration` - Private ⭐ NEW
 
-After uploading all 4, update your `.env.local`:
+After uploading all 5, update your `.env.local`:
 ```bash
 PROMPT_SOURCE=hub
 PROMPT_VERSION=latest
@@ -147,6 +182,8 @@ Look for this in the logs:
   ✓ Loaded: evaluation
   ↓ Fetching: agent-bio-summary-v2/collatedEvaluation:latest
   ✓ Loaded: collatedEvaluation
+  ↓ Fetching: agent-bio-summary-v2/orchestration:latest
+  ✓ Loaded: orchestration
 ✅ All prompts loaded from Hub successfully
 ```
 
