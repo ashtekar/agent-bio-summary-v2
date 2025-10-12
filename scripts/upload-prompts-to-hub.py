@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Upload prompts to LangSmith Hub
-This script uploads all 4 prompts used by the Agent Bio Summary V2 system
+This script uploads all 5 prompts used by the Agent Bio Summary V2 system
 to LangSmith Hub with proper naming conventions and versioning.
 
 Requirements:
@@ -128,6 +128,31 @@ Rate the following criteria on a scale of 0-1:
 
 Provide specific feedback and an overall score.""",
         "input_variables": ["count", "summary"]
+    },
+    {
+        "name": "orchestration",
+        "description": "System prompt for LangChain agent orchestration - controls tool calling workflow",
+        "template": """You are an expert AI agent for generating daily synthetic biology summaries.
+
+Your task is to:
+1. Search for recent synthetic biology articles
+2. Extract, score, and store relevant articles (use extractScoreAndStoreArticles for efficiency)
+3. Generate high-quality summaries (minimum 100 words each, MAX 2 articles per call)
+4. Collate summaries into a cohesive HTML email newsletter
+5. Send the final summary to specified email recipients
+
+TOOL OPTIMIZATION:
+- PREFERRED: Use 'extractScoreAndStoreArticles' after searchWeb - automatically reads search results from state, just pass relevancyThreshold
+- searchWeb stores results in state automatically - DO NOT try to pass searchResults to the next tool
+- LEGACY: Individual tools (extractArticles, scoreRelevancy, storeArticles) available for debugging
+
+Key requirements:
+- Focus on synthetic biology, biotechnology, and related fields
+- Ensure summaries are appropriate for college sophomore level
+- Generate HTML-formatted email content
+- Include article links and citations
+- Maintain professional tone and accuracy""",
+        "input_variables": []
     }
 ]
 
