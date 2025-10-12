@@ -2,15 +2,17 @@
 
 ## 🧬 Overview
 
-Agent Bio Summary V2 is an intelligent, agentic system that automatically generates daily synthetic biology and biotechnology summaries using LLM-driven tool calling. Built on OpenAI's Agent SDK with Langchain integration, it provides automated article discovery, intelligent summarization, and personalized email delivery. This system was designed to educate motivated high school students on advances and applications of synthetic biology. 
+Agent Bio Summary V2 is an intelligent, agentic system that automatically generates daily synthetic biology and biotechnology summaries using LLM-driven tool calling. Built on OpenAI's Agent SDK with Langchain integration, it provides automated article discovery, intelligent summarization, and personalized email delivery. This system was designed to educate motivated high school students on advances and applications of synthetic biology.
+
 
 ## 🚀 Key Features
 
 ### **LLM-Driven Intelligence**
-- **OpenAI Agent SDK**: Intelligent decision-making using configurable OpenAI models
+- **LangChain AgentExecutor**: Intelligent decision-making with automatic tool orchestration
 - **Tool Calling**: Dynamic tool selection based on context and requirements
 - **Model Flexibility**: Support for GPT-4o, GPT-4o-mini, and other OpenAI models
 - **Context Awareness**: Maintains state throughout the entire execution process
+- **Hub-Managed Prompts**: All 5 prompts versioned and managed in LangSmith Hub
 
 ### **Automated Workflow**
 - **Smart Article Discovery**: Google Custom Search API with site-specific filtering
@@ -19,11 +21,15 @@ Agent Bio Summary V2 is an intelligent, agentic system that automatically genera
 - **Email Delivery**: Professional HTML email templates via Resend.io
 
 ### **Advanced Capabilities**
+- **LangSmith Hub Integration**: All 5 prompts managed centrally in LangSmith Hub
+  - Agent orchestration prompt (controls workflow)
+  - Summarization, collation, and evaluation prompts
+  - Version control, A/B testing, and experimentation without deployments
 - **LangSmith Tracing**: 100% observability - all tool executions and LLM operations traced
-- **LLM-as-a-Judge**: Automatic quality evaluation (GPT-4o-mini) for every summary
+- **LLM-as-a-Judge**: Automatic quality evaluation for every summary
 - **Quality Annotations**: Eval scores (0-1 scale) linked to traces for trend tracking
-- **Langchain Integration**: Centralized prompt management 
 - **Cost Tracking**: Automatic cost and token tracking per operation (~$0.20/month for evals)
+- **Session-Based State Management**: Efficient data sharing between tools without token overhead
 
 ## 🏗️ Architecture
 
@@ -159,8 +165,32 @@ extractScoreAndStore → reads 100 results from state → processes them
 ### **Quality Dashboard Insights**
 - Track quality trends over time
 - Identify low-performing summaries
-- Compare prompt versions (coming in Week 4)
+- Compare prompt versions across experiments
 - Monitor evaluation accuracy
+
+## 🎯 LangSmith Hub Prompts
+
+All prompts are managed in LangSmith Hub for easy versioning and experimentation:
+
+### **Prompt Management**
+1. **`orchestration`** - Agent system prompt (controls tool calling workflow)
+2. **`summarization`** - Individual article summarization instructions
+3. **`collation`** - Newsletter assembly and HTML formatting
+4. **`evaluation`** - LLM-as-judge for individual summaries
+5. **`collated-evaluation`** - LLM-as-judge for final newsletter
+
+
+## 🧬 Running Experiments
+
+The system is designed for easy experimentation with prompts, models, and parameters:
+
+### **Experiment Configuration**
+
+You can run A/B tests on:
+- **Prompt versions** (from LangSmith Hub)
+- **Model selection** (GPT-4o vs GPT-4o-mini)
+- **Temperature settings** (creativity vs consistency)
+
 
 ## 🧪 Testing
 
@@ -186,8 +216,22 @@ npm run test:e2e
 
 ## 📚 Documentation
 
-- **[Architecture Specification](./ABS%20V2%20-%20Architecture%20Spec.md)**: Detailed system architecture
+### **Architecture & Design**
+- **[Architecture Specification](./ABS%20V2%20-%20Architecture%20Spec.md)**: Detailed system architecture with state management
 - **[Design Specification](./ABS%20V2%20-%20Design%20Spec.md)**: Component design and implementation
 - **[Implementation Plan](./ABS%20V2%20-%20Implementation%20Plan.md)**: Development roadmap
+
+### **LangSmith & Prompts**
+- **[Prompt Hub Setup Guide](./docs/PROMPT-HUB-SETUP.md)**: Step-by-step Hub configuration
+- **[Prompts for Upload](./docs/prompts-for-hub-upload.md)**: All 5 prompt templates for Hub
+- **[LangChain Migration Plan](./LANGCHAIN-MIGRATION-PLAN.md)**: Migration strategy and status
+
+### **Testing**
 - **[Testing Guide](./TESTING.md)**: Comprehensive testing documentation
 - **[Integration Testing](./INTEGRATION-TESTING-PLAN.md)**: External service testing
+
+### **Threads & History**
+- **[Threads Database Schema](./docs/THREADS-DB-SCHEMA.md)**: Thread tracking table structure
+- **[Threads Implementation](./docs/THREADS-IMPLEMENTATION.md)**: Thread-based execution tracking
+- **[Threads Setup Guide](./docs/THREADS-SETUP-GUIDE.md)**: How to set up thread tracking
+
