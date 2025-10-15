@@ -650,7 +650,11 @@ export class LLMDrivenBioSummaryAgent {
         console.log('[TOOL] Executing combined extractScoreAndStoreArticles');
         const relevancyThreshold = this.context.systemSettings.relevancyThreshold ?? 0.2;
         console.log(`[TOOL] Using relevancy threshold from settings: ${relevancyThreshold}`);
-        const combinedResult = await this.searchTools.extractScoreAndStoreArticles(args.searchResults, relevancyThreshold);
+        const combinedResult = await this.searchTools.extractScoreAndStoreArticles(
+          args.searchResults, 
+          relevancyThreshold,
+          this.context.searchSettings
+        );
         if (!combinedResult.success) {
           throw new Error(`Combined extract/score/store failed: ${combinedResult.error}`);
         }
@@ -671,7 +675,11 @@ export class LLMDrivenBioSummaryAgent {
 
       case 'scoreRelevancy':
         const scoreThreshold = this.context.systemSettings.relevancyThreshold ?? 0.2;
-        const scoreResult = await this.processingTools.scoreRelevancy(args.articles, scoreThreshold);
+        const userKeywords = this.context.searchSettings.query ? 
+          this.context.searchSettings.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
+          [];
+        console.log(`[SCORING] Using user keywords: ${userKeywords.join(', ')}`);
+        const scoreResult = await this.processingTools.scoreRelevancy(args.articles, scoreThreshold, userKeywords);
         if (!scoreResult.success) {
           throw new Error(`Scoring failed: ${scoreResult.error}`);
         }

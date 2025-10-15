@@ -349,7 +349,7 @@ export class SearchTools {
    * This optimized tool combines three operations into one to reduce LLM round-trips
    * Phase 2B optimization as per Design Spec Section 9
    */
-  async extractScoreAndStoreArticles(searchResults: any[], relevancyThreshold: number = 0.2): Promise<ToolResult> {
+  async extractScoreAndStoreArticles(searchResults: any[], relevancyThreshold: number = 0.2, searchSettings?: SearchSettings): Promise<ToolResult> {
     return this.tracing.traceToolExecution(
       'extractScoreAndStoreArticles',
       async () => {
@@ -407,14 +407,37 @@ export class SearchTools {
       console.log(`[PHASE 1: EXTRACTION] Successfully extracted ${articles.length} articles`);
 
       // ============================================================
-      // PHASE 2: SCORING
+      // PHASE 2: DUPLICATE CHECKING
       // ============================================================
-      console.log('\n[PHASE 2: SCORING] Scoring articles for relevancy...');
+      console.log('\n[PHASE 2: DUPLICATE CHECKING] Checking for existing articles...');
+      const duplicateCheckStartTime = Date.now();
+      
+      const existingUrls = await this.getExistingArticleUrls(articles);
+      console.log(`[DUPLICATE CHECK] Found ${existingUrls.length} existing articles out of ${articles.length} total`);
+      
+      // Filter out existing articles - only process new ones
+      const newArticles = articles.filter(article => !existingUrls.includes(article.url));
+      console.log(`[DUPLICATE CHECK] Processing ${newArticles.length} new articles (skipping ${articles.length - newArticles.length} duplicates)`);
+      
+      const duplicateCheckTime = Date.now() - duplicateCheckStartTime;
+      console.log(`[PHASE 2: DUPLICATE CHECKING] ✓ Completed in ${duplicateCheckTime}ms`);
+
+      // ============================================================
+      // PHASE 3: SCORING (only for new articles)
+      // ============================================================
+      console.log('\n[PHASE 3: SCORING] Scoring new articles for relevancy...');
       const scoringStartTime = Date.now();
       
-      const scoredArticles = articles.map(article => {
-        const score = this.calculateRelevancyScore(article);
-        console.log(`[Score] ${article.title}: ${score.toFixed(3)}`);
+      // Extract user keywords from search settings
+      const userKeywords = searchSettings?.query ? 
+        searchSettings.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
+        [];
+      
+      console.log(`[SCORING] Using user keywords: ${userKeywords.join(', ')}`);
+      
+      const scoredNewArticles = newArticles.map(article => {
+        const score = this.calculateRelevancyScore(article, userKeywords);
+        console.log(`[Score] ${article.title}: ${score.toFixed(3)} (keywords: ${userKeywords.length})`);
         return {
           ...article,
           relevancyScore: score
@@ -423,29 +446,29 @@ export class SearchTools {
 
       // Filter by relevancy threshold (from system settings, default 0.2)
       const threshold = relevancyThreshold;
-      console.log(`[PHASE 2: SCORING] Using relevancy threshold: ${threshold} (from system settings)`);
-      const relevantArticles = scoredArticles.filter(article => article.relevancyScore >= threshold);
+      console.log(`[PHASE 3: SCORING] Using relevancy threshold: ${threshold} (from system settings)`);
+      const relevantNewArticles = scoredNewArticles.filter(article => article.relevancyScore >= threshold);
       
       // Sort by relevancy score (highest first)
-      relevantArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
+      relevantNewArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
 
       const scoringTime = Date.now() - scoringStartTime;
-      console.log(`[PHASE 2: SCORING] ✓ Completed in ${scoringTime}ms`);
-      console.log(`[PHASE 2: SCORING] ${relevantArticles.length}/${scoredArticles.length} articles passed threshold (${threshold})`);
+      console.log(`[PHASE 3: SCORING] ✓ Completed in ${scoringTime}ms`);
+      console.log(`[PHASE 3: SCORING] ${relevantNewArticles.length}/${scoredNewArticles.length} new articles passed threshold (${threshold})`);
 
       // ============================================================
-      // PHASE 3: STORAGE
+      // PHASE 4: STORAGE (only new relevant articles)
       // ============================================================
-      console.log('\n[PHASE 3: STORAGE] Storing relevant articles in database...');
+      console.log('\n[PHASE 4: STORAGE] Storing new relevant articles in database...');
       const storageStartTime = Date.now();
       
       if (!this.supabase) {
-        console.warn('[PHASE 3: STORAGE] ⚠ Supabase client not initialized, skipping storage');
-      } else if (relevantArticles.length === 0) {
-        console.log('[PHASE 3: STORAGE] No relevant articles to store');
+        console.warn('[PHASE 4: STORAGE] ⚠ Supabase client not initialized, skipping storage');
+      } else if (relevantNewArticles.length === 0) {
+        console.log('[PHASE 4: STORAGE] No new relevant articles to store');
       } else {
         // Prepare articles for database insertion
-        const articlesToStore = relevantArticles.map(article => ({
+        const articlesToStore = relevantNewArticles.map(article => ({
           id: article.id,
           title: article.title || 'Untitled Article',
           url: article.url || 'https://unknown-source.com',
@@ -469,16 +492,16 @@ export class SearchTools {
           .select();
 
         if (error) {
-          console.warn(`[PHASE 3: STORAGE] ⚠ Database upsert failed: ${error.message}`);
+          console.warn(`[PHASE 4: STORAGE] ⚠ Database upsert failed: ${error.message}`);
         } else {
-          console.log(`[PHASE 3: STORAGE] ✓ Successfully stored ${data.length} articles`);
+          console.log(`[PHASE 4: STORAGE] ✓ Successfully stored ${data.length} new articles`);
         }
       }
 
       const storageTime = Date.now() - storageStartTime;
       const totalTime = Date.now() - startTime;
 
-      console.log(`[PHASE 3: STORAGE] ✓ Completed in ${storageTime}ms`);
+      console.log(`[PHASE 4: STORAGE] ✓ Completed in ${storageTime}ms`);
       
       // ============================================================
       // SUMMARY
@@ -487,21 +510,25 @@ export class SearchTools {
       console.log('[COMBINED TOOL] Execution Summary:');
       console.log(`  • Total Time: ${totalTime}ms`);
       console.log(`  • Extraction: ${extractionTime}ms (${articles.length} articles)`);
-      console.log(`  • Scoring: ${scoringTime}ms (${relevantArticles.length}/${articles.length} relevant)`);
-      console.log(`  • Storage: ${storageTime}ms`);
-      console.log(`  • Final Result: ${relevantArticles.length} relevant articles ready for summarization`);
+      console.log(`  • Duplicate Check: ${duplicateCheckTime}ms (${articles.length - newArticles.length} duplicates skipped)`);
+      console.log(`  • Scoring: ${scoringTime}ms (${relevantNewArticles.length}/${newArticles.length} new articles relevant)`);
+      console.log(`  • Storage: ${storageTime}ms (${relevantNewArticles.length} new articles stored)`);
+      console.log(`  • Final Result: ${relevantNewArticles.length} new relevant articles ready for summarization`);
       console.log('='.repeat(80));
 
           return {
             success: true,
-            data: relevantArticles,
+            data: relevantNewArticles, // Return only new relevant articles
             metadata: {
               executionTime: totalTime,
               extractionTime,
+              duplicateCheckTime,
               scoringTime,
               storageTime,
               totalArticles: articles.length,
-              relevantArticles: relevantArticles.length,
+              newArticles: newArticles.length,
+              duplicateArticles: articles.length - newArticles.length,
+              relevantNewArticles: relevantNewArticles.length,
               threshold,
               cost: 0,
               tokens: 0
@@ -531,10 +558,78 @@ export class SearchTools {
   }
 
   /**
-   * Calculate relevancy score for an article
-   * Implements the algorithmic scoring from ProcessingTools
+   * Get URLs of articles that already exist in the database
    */
-  private calculateRelevancyScore(article: Article): number {
+  private async getExistingArticleUrls(articles: Article[]): Promise<string[]> {
+    if (!this.supabase || articles.length === 0) {
+      return [];
+    }
+
+    try {
+      const urls = articles.map(article => article.url);
+      const { data, error } = await this.supabase
+        .from('articles')
+        .select('url')
+        .in('url', urls);
+
+      if (error) {
+        console.warn(`[DUPLICATE CHECK] Failed to check existing articles: ${error.message}`);
+        return [];
+      }
+
+      return data.map(row => row.url);
+    } catch (error) {
+      console.warn(`[DUPLICATE CHECK] Error checking existing articles:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate relevancy score for an article using user settings
+   * Replaces hardcoded keywords with user's search query
+   */
+  private calculateRelevancyScore(article: Article, userKeywords: string[]): number {
+    let score = 0;
+    
+    const content = `${article.title} ${article.content}`.toLowerCase();
+    
+    // 1. User's search keywords (80% weight) - PRIMARY SIGNAL
+    if (userKeywords && userKeywords.length > 0) {
+      const keywordMatches = userKeywords.filter(keyword => 
+        content.includes(keyword.toLowerCase().trim())
+      );
+      score += (keywordMatches.length / userKeywords.length) * 0.8;
+    }
+    
+    // 2. Article freshness (20% weight) - SECONDARY SIGNAL
+    try {
+      const publishedDate = new Date(article.publishedDate);
+      if (!isNaN(publishedDate.getTime())) {
+        const daysSincePublished = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24);
+        let freshnessScore = 0.6; // Default for old articles
+        
+        if (daysSincePublished < 7) {
+          freshnessScore = 1.0; // Very recent
+        } else if (daysSincePublished < 30) {
+          freshnessScore = 0.8; // Recent
+        } else if (daysSincePublished < 90) {
+          freshnessScore = 0.7; // Somewhat recent
+        }
+        
+        score += freshnessScore * 0.2;
+      }
+    } catch (error) {
+      // Skip freshness bonus if date parsing fails, but still give baseline score
+      score += 0.6 * 0.2;
+    }
+    
+    // Ensure score is between 0 and 1
+    return Math.min(Math.max(score, 0), 1);
+  }
+
+  // COMMENTED OUT: Old hardcoded relevance scoring (kept for future Option 2 reference)
+  /*
+  private calculateRelevancyScore_Legacy(article: Article): number {
     let score = 0;
     
     // Keywords that indicate synthetic biology relevance
@@ -600,4 +695,5 @@ export class SearchTools {
     // Ensure score is between 0 and 1
     return Math.min(Math.max(score, 0), 1);
   }
+  */
 }

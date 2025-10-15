@@ -107,8 +107,12 @@ export class BioSummaryAgent {
     this.context.currentStep = 'processing';
     console.log('Executing processing phase...');
     
-    // Score articles for relevancy
-    const scoreResult = await this.processingTools.scoreRelevancy(this.context.foundArticles);
+    // Score articles for relevancy using user keywords
+    const userKeywords = this.context.searchSettings.query ? 
+      this.context.searchSettings.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
+      [];
+    console.log(`[SCORING] Using user keywords: ${userKeywords.join(', ')}`);
+    const scoreResult = await this.processingTools.scoreRelevancy(this.context.foundArticles, undefined, userKeywords);
     if (!scoreResult.success) {
       throw new Error(`Scoring failed: ${scoreResult.error}`);
     }

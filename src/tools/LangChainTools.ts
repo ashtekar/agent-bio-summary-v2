@@ -106,9 +106,20 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     
     console.log(`Processing ${state.searchResults.length} search results from state`);
     
+    // Reconstruct search settings from state metadata
+    const searchSettings = {
+      query: state.metadata?.query || '',
+      maxResults: state.searchResults.length,
+      sources: [], // Sources are not stored in metadata, but that's OK for scoring
+      dateRange: 'd7' // Default to 7 days if not specified
+    };
+    
+    console.log(`[SCORING] Using search settings: query="${searchSettings.query}"`);
+    
     const result = await searchTools.extractScoreAndStoreArticles(
       state.searchResults,
-      input.relevancyThreshold
+      input.relevancyThreshold,
+      searchSettings
     );
     
     // Store processed articles in state
@@ -164,9 +175,19 @@ export const scoreRelevancyTool = new DynamicStructuredTool({
     relevancyThreshold: z.number().default(0.2).describe('Minimum relevancy score threshold')
   }),
   func: async (input) => {
+    // Get user keywords from state metadata
+    const sessionId = getToolSessionId();
+    const state = toolStateManager.getState(sessionId);
+    const userKeywords = state.metadata?.query ? 
+      state.metadata.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
+      [];
+    
+    console.log(`[SCORING] Using user keywords: ${userKeywords.join(', ')}`);
+    
     const result = await processingTools.scoreRelevancy(
       input.articles as any,
-      input.relevancyThreshold
+      input.relevancyThreshold,
+      userKeywords
     );
     return JSON.stringify(result);
   }

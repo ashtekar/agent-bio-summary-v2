@@ -18,16 +18,17 @@ export class ProcessingTools {
   }
 
   /**
-   * Score articles for relevancy using existing algorithm
+   * Score articles for relevancy using user settings
    */
-  async scoreRelevancy(articles: Article[], relevancyThreshold: number = 0.2): Promise<ToolResult> {
+  async scoreRelevancy(articles: Article[], relevancyThreshold: number = 0.2, userKeywords: string[] = []): Promise<ToolResult> {
     return this.tracing.traceToolExecution(
       'scoreRelevancy',
       async () => {
         console.log(`Scoring relevancy for ${articles.length} articles`);
+        console.log(`Using user keywords: ${userKeywords.join(', ')}`);
         
         const scoredArticles = articles.map(article => {
-          const score = this.calculateRelevancyScore(article);
+          const score = this.calculateRelevancyScore(article, userKeywords);
           return {
             ...article,
             relevancyScore: score
@@ -142,10 +143,52 @@ export class ProcessingTools {
   }
 
   /**
-   * Calculate relevancy score for an article
-   * This implements the existing algorithm from V1
+   * Calculate relevancy score for an article using user settings
+   * Replaces hardcoded keywords with user's search query
    */
-  private calculateRelevancyScore(article: Article): number {
+  private calculateRelevancyScore(article: Article, userKeywords: string[]): number {
+    let score = 0;
+    
+    const content = `${article.title} ${article.content}`.toLowerCase();
+    
+    // 1. User's search keywords (80% weight) - PRIMARY SIGNAL
+    if (userKeywords && userKeywords.length > 0) {
+      const keywordMatches = userKeywords.filter(keyword => 
+        content.includes(keyword.toLowerCase().trim())
+      );
+      score += (keywordMatches.length / userKeywords.length) * 0.8;
+    }
+    
+    // 2. Article freshness (20% weight) - SECONDARY SIGNAL
+    try {
+      const publishedDate = new Date(article.publishedDate);
+      if (!isNaN(publishedDate.getTime())) {
+        const daysSincePublished = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24);
+        let freshnessScore = 0.6; // Default for old articles
+        
+        if (daysSincePublished < 7) {
+          freshnessScore = 1.0; // Very recent
+        } else if (daysSincePublished < 30) {
+          freshnessScore = 0.8; // Recent
+        } else if (daysSincePublished < 90) {
+          freshnessScore = 0.7; // Somewhat recent
+        }
+        
+        score += freshnessScore * 0.2;
+      }
+    } catch (error) {
+      console.warn(`Failed to parse publishedDate: ${article.publishedDate}`, error);
+      // Skip freshness bonus if date parsing fails, but still give baseline score
+      score += 0.6 * 0.2;
+    }
+    
+    // Ensure score is between 0 and 1
+    return Math.min(Math.max(score, 0), 1);
+  }
+
+  // COMMENTED OUT: Old hardcoded relevance scoring (kept for future Option 2 reference)
+  /*
+  private calculateRelevancyScore_Legacy(article: Article): number {
     let score = 0;
     
     // Keywords that indicate synthetic biology relevance
@@ -212,6 +255,7 @@ export class ProcessingTools {
     // Ensure score is between 0 and 1
     return Math.min(Math.max(score, 0), 1);
   }
+  */
 
   /**
    * Get stored articles from database
