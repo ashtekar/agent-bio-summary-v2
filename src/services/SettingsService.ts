@@ -358,6 +358,13 @@ export class SettingsService {
   }> {
     return [
       {
+        id: 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1',
+        name: 'GPT-4.1 Nano (Fine-tuned)',
+        description: 'Fine-tuned model for synthetic biology summaries',
+        maxTokens: 128000,
+        costPer1kTokens: 0.003 // Fine-tuned models typically cost more than base models
+      },
+      {
         id: 'gpt-4o',
         name: 'GPT-4o',
         description: 'Most capable model, best for complex reasoning',
