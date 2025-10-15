@@ -35,8 +35,17 @@ interface Settings {
   temperature: number;
 }
 
+interface AvailableModel {
+  id: string;
+  name: string;
+  description: string;
+  maxTokens: number;
+  costPer1kTokens: number;
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [newRecipient, setNewRecipient] = useState({ email: '', name: '' });
   const [newSite, setNewSite] = useState({ name: '', domain: '' });
   const [loading, setLoading] = useState(true);
@@ -52,6 +61,10 @@ export default function SettingsPage() {
       if (response.ok) {
         const result = await response.json();
         const apiSettings = result.data?.settings;
+        const models = result.data?.availableModels || [];
+        
+        console.log('🔧 Available models from API:', models);
+        setAvailableModels(models);
         
         // Transform API response to frontend format
         // Map summaryLength number to string
@@ -543,13 +556,14 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, model: e.target.value })}
                 className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
               >
-                <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                {availableModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name} - {model.description} (${model.costPer1kTokens}/1k tokens)
+                  </option>
+                ))}
               </select>
               <p className="text-slate-400 text-xs mt-2">
-                Select the OpenAI model for generating summaries. GPT-4o Mini offers the best balance of quality and cost.
+                Select the OpenAI model for generating summaries. Fine-tuned models offer specialized performance for specific tasks.
               </p>
             </div>
 
