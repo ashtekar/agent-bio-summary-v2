@@ -30,6 +30,9 @@ export function getToolSessionId(): string {
   if (!currentSessionId) {
     // Fallback for legacy usage
     currentSessionId = `session_${Date.now()}`;
+    console.log(`[SESSION] Created new session ID: ${currentSessionId}`);
+  } else {
+    console.log(`[SESSION] Using existing session ID: ${currentSessionId}`);
   }
   return currentSessionId;
 }
@@ -60,6 +63,9 @@ export const searchWebTool = new DynamicStructuredTool({
     if (result.success && result.data) {
       // Store search results in state for next tool
       const sessionId = getToolSessionId();
+      console.log(`[SEARCH-WEB] Session ID: ${sessionId}`);
+      console.log(`[SEARCH-WEB] Storing ${result.data.length} search results in state`);
+      
       toolStateManager.updateState(sessionId, { 
         searchResults: result.data,
         metadata: {
@@ -68,6 +74,8 @@ export const searchWebTool = new DynamicStructuredTool({
           timestamp: new Date().toISOString()
         }
       });
+      
+      console.log(`[SEARCH-WEB] State updated successfully`);
       
       // Return summary instead of full results
       return JSON.stringify({
@@ -97,7 +105,33 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     const sessionId = getToolSessionId();
     const state = toolStateManager.getState(sessionId);
     
+    console.log(`[EXTRACT-SCORE-STORE] Session ID: ${sessionId}`);
+    console.log(`[EXTRACT-SCORE-STORE] State:`, JSON.stringify(state, null, 2));
+    
     if (!state.searchResults || state.searchResults.length === 0) {
+      console.error(`[EXTRACT-SCORE-STORE] No search results found. State keys:`, Object.keys(state || {}));
+      console.error(`[EXTRACT-SCORE-STORE] Available sessions:`, toolStateManager.getSessions());
+      
+      // Try to find search results in any available session
+      const allSessions = toolStateManager.getSessions();
+      for (const sessionId of allSessions) {
+        const sessionState = toolStateManager.getState(sessionId);
+        if (sessionState.searchResults && sessionState.searchResults.length > 0) {
+          console.log(`[EXTRACT-SCORE-STORE] Found search results in session ${sessionId}, using those instead`);
+          const result = await searchTools.extractScoreAndStoreArticles(
+            sessionState.searchResults,
+            input.relevancyThreshold,
+            {
+              query: sessionState.metadata?.query || '',
+              maxResults: sessionState.searchResults.length,
+              sources: [],
+              dateRange: 'd7'
+            }
+          );
+          return JSON.stringify(result);
+        }
+      }
+      
       return JSON.stringify({
         success: false,
         error: 'No search results found in state. Call searchWeb first.'
