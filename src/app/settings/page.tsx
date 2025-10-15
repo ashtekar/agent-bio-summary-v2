@@ -64,6 +64,11 @@ export default function SettingsPage() {
         const summaryLengthNum = apiSettings?.systemSettings?.summaryLength || 100;
         const summaryLengthStr = summaryLengthReverseMap[summaryLengthNum] || 'medium';
         
+        console.log('🔧 Loading settings from API:', {
+          searchSettings: apiSettings?.searchSettings,
+          timeWindow: apiSettings?.searchSettings?.timeWindow
+        });
+
         const transformedSettings: Settings = {
           recipients: apiSettings?.recipients?.map((r: any, idx: number) => ({
             id: idx.toString(),
@@ -77,7 +82,7 @@ export default function SettingsPage() {
             domain: domain,
             active: true
           })) || [],
-          timeWindow: 24,
+          timeWindow: apiSettings?.searchSettings?.timeWindow || 24,
           maxArticles: apiSettings?.searchSettings?.maxResults || 10,
           relevanceThreshold: apiSettings?.systemSettings?.relevancyThreshold || 0.2,
           keywords: apiSettings?.searchSettings?.query || '',
