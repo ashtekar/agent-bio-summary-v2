@@ -125,7 +125,7 @@ describe('SettingsService', () => {
       const mockSettings = {
         query: 'biotechnology innovation',
         max_results: 15,
-        date_range: 'd30',
+        time_window: 720, // 30 days in hours
         sources: ['nature.com', 'science.org', 'cell.com'],
       };
 
@@ -139,8 +139,9 @@ describe('SettingsService', () => {
       expect(result).toEqual({
         query: 'biotechnology innovation',
         maxResults: 15,
-        dateRange: 'd30',
+        dateRange: 'd30', // This should be calculated from time_window: 720
         sources: ['nature.com', 'science.org', 'cell.com'],
+        timeWindow: 720,
       });
 
       expect(mockSupabaseClient.from).toHaveBeenCalledWith('search_settings');
@@ -156,8 +157,9 @@ describe('SettingsService', () => {
       expect(result).toEqual({
         query: 'synthetic biology biotechnology',
         maxResults: 10,
-        dateRange: 'd7',
+        dateRange: 'd7', // This should be calculated from default timeWindow: 24
         sources: ['nature.com', 'science.org', 'biorxiv.org'],
+        timeWindow: 24,
       });
     });
   });
@@ -230,7 +232,7 @@ describe('SettingsService', () => {
       const mockSearchSettings = {
         query: 'biotechnology innovation',
         max_results: 15,
-        date_range: 'd30',
+        time_window: 720, // 30 days in hours
         sources: ['nature.com', 'science.org'],
       };
 
@@ -269,8 +271,9 @@ describe('SettingsService', () => {
         searchSettings: {
           query: 'biotechnology innovation',
           maxResults: 15,
-          dateRange: 'd30',
+          dateRange: 'd30', // This should be calculated from time_window: 720
           sources: ['nature.com', 'science.org'],
+          timeWindow: 720,
         },
         recipients: [
           {

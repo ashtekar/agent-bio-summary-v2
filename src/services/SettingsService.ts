@@ -105,16 +105,18 @@ export class SettingsService {
         return {
           query: 'synthetic biology biotechnology',
           maxResults: 10,
-          dateRange: 'd7',
-          sources: ['nature.com', 'science.org', 'biorxiv.org']
+          dateRange: this.convertHoursToGoogleDateRange(24), // Default to 24 hours
+          sources: ['nature.com', 'science.org', 'biorxiv.org'],
+          timeWindow: 24
         };
       }
 
       return {
         query: data?.query || 'synthetic biology biotechnology',
         maxResults: Math.min(data?.max_results || 10, 100), // Cap at 100 (Google API limit)
-        dateRange: data?.date_range || 'd7',
-        sources: data?.sources || ['nature.com', 'science.org', 'biorxiv.org']
+        dateRange: this.convertHoursToGoogleDateRange(data?.time_window || 24),
+        sources: data?.sources || ['nature.com', 'science.org', 'biorxiv.org'],
+        timeWindow: data?.time_window || 24
       };
 
     } catch (error) {
@@ -124,8 +126,9 @@ export class SettingsService {
       return {
         query: 'synthetic biology biotechnology',
         maxResults: 10,
-        dateRange: 'd7',
-        sources: ['nature.com', 'science.org', 'biorxiv.org']
+        dateRange: this.convertHoursToGoogleDateRange(24), // Default to 24 hours
+        sources: ['nature.com', 'science.org', 'biorxiv.org'],
+        timeWindow: 24
       };
     }
   }
@@ -250,7 +253,7 @@ export class SettingsService {
         id: 1,
         query: settings.query,
         max_results: settings.maxResults ? Math.min(settings.maxResults, 100) : undefined, // Cap at 100 (Google API limit)
-        date_range: settings.dateRange,
+        time_window: settings.timeWindow,
         sources: settings.sources,
         updated_at: new Date().toISOString()
       };
@@ -362,6 +365,19 @@ export class SettingsService {
         costPer1kTokens: 0.0005
       }
     ];
+  }
+
+  /**
+   * Convert hours to Google Custom Search API date range format
+   */
+  private convertHoursToGoogleDateRange(hours: number): string {
+    if (hours <= 24) return 'd1';
+    if (hours <= 48) return 'd2';
+    if (hours <= 72) return 'd3';
+    if (hours <= 168) return 'd7';  // 7 days
+    if (hours <= 720) return 'd30'; // 30 days
+    if (hours <= 2160) return 'm3'; // 90 days
+    return 'y1'; // 1 year
   }
 }
 

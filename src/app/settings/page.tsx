@@ -149,7 +149,7 @@ export default function SettingsPage() {
       const searchSettings = {
         query: settings.keywords,
         maxResults: settings.maxArticles,
-        dateRange: 'd7', // Could be made configurable
+        timeWindow: settings.timeWindow,
         sources: settings.searchSites
           .filter(site => site.active)
           .map(site => site.domain)

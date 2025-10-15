@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
         searchSettings: {
           query: 'synthetic biology biotechnology',
           maxResults: 10,
-          dateRange: 'd7', // Last 7 days
-          sources: ['nature.com', 'science.org', 'biorxiv.org']
+          dateRange: 'd7', // This will be calculated from timeWindow in SettingsService
+          sources: ['nature.com', 'science.org', 'biorxiv.org'],
+          timeWindow: 168 // 7 days in hours
         } as SearchSettings,
         
         systemSettings: {

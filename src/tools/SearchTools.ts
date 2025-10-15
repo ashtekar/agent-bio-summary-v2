@@ -59,7 +59,10 @@ export class SearchTools {
           const searchUrl = new URL('https://www.googleapis.com/customsearch/v1');
           searchUrl.searchParams.set('key', this.googleApiKey);
           searchUrl.searchParams.set('cx', this.searchEngineId);
-          searchUrl.searchParams.set('q', searchSettings.query);
+          
+          // Build restricted query using sources
+          const restrictedQuery = this.buildRestrictedQuery(searchSettings.query, searchSettings.sources);
+          searchUrl.searchParams.set('q', restrictedQuery);
           searchUrl.searchParams.set('num', resultsToFetch.toString());
           searchUrl.searchParams.set('start', startIndex.toString());
           
@@ -67,6 +70,7 @@ export class SearchTools {
             searchUrl.searchParams.set('dateRestrict', searchSettings.dateRange);
           }
 
+          console.log(`Searching with restricted query: ${restrictedQuery}`);
           console.log(`Fetching results ${startIndex} to ${startIndex + resultsToFetch - 1}...`);
           
           const response = await fetch(searchUrl.toString());
@@ -300,6 +304,33 @@ export class SearchTools {
     } catch {
       return displayLink;
     }
+  }
+
+  /**
+   * Build restricted query using Google's site: operator
+   * Converts sources array to site: restrictions in the search query
+   */
+  private buildRestrictedQuery(query: string, sources: string[]): string {
+    if (!sources || sources.length === 0) {
+      return query;
+    }
+    
+    // Clean up source domains (remove protocols, www, etc.)
+    const cleanSources = sources.map(source => {
+      return source
+        .replace(/^https?:\/\//, '')  // Remove http:// or https://
+        .replace(/^www\./, '')        // Remove www.
+        .split('/')[0];               // Take only domain part
+    });
+    
+    // Handle single source efficiently
+    if (cleanSources.length === 1) {
+      return `${query} site:${cleanSources[0]}`;
+    }
+    
+    // Handle multiple sources with OR operator
+    const siteRestrictions = cleanSources.map(source => `site:${source}`).join(' OR ');
+    return `${query} (${siteRestrictions})`;
   }
 
   /**

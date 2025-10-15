@@ -28,6 +28,7 @@ export interface SearchSettings {
   maxResults: number;
   dateRange: string;
   sources: string[];
+  timeWindow?: number; // Optional time window in hours for search results (default: 24)
 }
 
 export interface SystemSettings {
