@@ -24,11 +24,12 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
-      // Always use ID = 1 for singleton settings
+      // Get the most recent system settings (or create new one)
       const { data, error } = await this.supabase
         .from('system_settings')
         .select('*')
-        .eq('id', 1)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) {
@@ -88,11 +89,12 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
-      // Always use ID = 1 for singleton settings
+      // Get the most recent search settings (or create new one)
       const { data, error } = await this.supabase
         .from('search_settings')
         .select('*')
-        .eq('id', 1)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) {
@@ -218,9 +220,8 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
-      // Always use ID = 1 for singleton settings
-      const updateData = {
-        id: 1,
+      // Create new system settings record (don't update existing ones)
+      const insertData = {
         summary_length: settings.summaryLength,
         target_audience: settings.targetAudience,
         include_citations: settings.includeCitations,
@@ -229,12 +230,13 @@ export class SettingsService {
         llm_temperature: settings.llmTemperature,
         llm_max_tokens: settings.llmMaxTokens,
         relevancy_threshold: settings.relevancyThreshold,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
       const { error } = await this.supabase
         .from('system_settings')
-        .upsert(updateData, { onConflict: 'id' });
+        .insert(insertData);
 
       if (error) {
         throw new Error(`Failed to update system settings: ${error.message}`);
@@ -262,21 +264,21 @@ export class SettingsService {
         sources: settings.sources
       });
 
-      // Always use ID = 1 for singleton settings
-      const updateData = {
-        id: 1,
+      // Create new search settings record (don't update existing ones)
+      const insertData = {
         query: settings.query,
         max_results: settings.maxResults ? Math.min(settings.maxResults, 100) : undefined, // Cap at 100 (Google API limit)
         time_window: settings.timeWindow,
         sources: settings.sources,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      console.log('📝 Database update data:', updateData);
+      console.log('📝 Database insert data:', insertData);
 
       const { error } = await this.supabase
         .from('search_settings')
-        .upsert(updateData, { onConflict: 'id' });
+        .insert(insertData);
 
       if (error) {
         console.error('❌ Database update error:', error);
@@ -398,6 +400,7 @@ export class SettingsService {
     if (hours <= 2160) return 'm3'; // 90 days
     return 'y1'; // 1 year
   }
+
 }
 
 // Export singleton instance
