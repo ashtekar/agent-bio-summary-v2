@@ -23,6 +23,7 @@ const emailTools = new EmailTools();
 let currentSessionId: string | null = null;
 
 export function setToolSessionId(sessionId: string) {
+  console.log(`[SESSION] Setting session ID: ${sessionId} (previous: ${currentSessionId})`);
   currentSessionId = sessionId;
 }
 
@@ -151,11 +152,22 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
       
       // Try to find search results in any available session
       const allSessions = toolStateManager.getSessions();
+      console.log(`[EXTRACT-SCORE-STORE] Searching ${allSessions.length} sessions for search results...`);
+      
       for (const sessionWithData of allSessions) {
         const sessionState = toolStateManager.getState(sessionWithData);
+        console.log(`[EXTRACT-SCORE-STORE] Checking session ${sessionWithData}:`, {
+          hasSearchResults: !!sessionState.searchResults,
+          searchResultsCount: sessionState.searchResults?.length || 0,
+          hasMetadata: !!sessionState.metadata
+        });
+        
         if (sessionState.searchResults && sessionState.searchResults.length > 0) {
-          console.log(`[EXTRACT-SCORE-STORE] Found search results in session ${sessionWithData}, using those instead`);
+          console.log(`[EXTRACT-SCORE-STORE] ✅ Found search results in session ${sessionWithData}, using those instead`);
           console.log(`[EXTRACT-SCORE-STORE] Current session: ${sessionId}, Using session: ${sessionWithData}`);
+          
+          // Update the current session to point to the one with data
+          setToolSessionId(sessionWithData);
           
           const result = await searchTools.extractScoreAndStoreArticles(
             sessionState.searchResults,
