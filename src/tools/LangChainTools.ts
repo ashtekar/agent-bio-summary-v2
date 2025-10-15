@@ -100,12 +100,17 @@ export const searchWebTool = new DynamicStructuredTool({
  */
 export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
   name: 'extractScoreAndStoreArticles',
-  description: 'OPTIMIZED COMBINED TOOL: Extract article content, score for relevancy, and store in database. Automatically reads search results from state (populated by searchWeb). Combines three operations (extract, score, store) into one efficient call.',
+  description: 'OPTIMIZED COMBINED TOOL: Extract article content, score for relevancy, and store in database. Automatically reads search results from state (populated by searchWeb). Combines three operations (extract, score, store) into one efficient call. IMPORTANT: You MUST call searchWeb first to populate the state with search results before calling this tool.',
   schema: z.object({
     relevancyThreshold: z.number().default(0.2).describe('Minimum relevancy score threshold (0-1 scale). Default: 0.2')
   }),
   func: async (input) => {
     console.log(`[EXTRACT-SCORE-STORE] Called with input:`, JSON.stringify(input, null, 2));
+    console.log(`[EXTRACT-SCORE-STORE] Tool called at: ${new Date().toISOString()}`);
+    
+    // Check if this is the first tool call in this execution
+    const allSessions = toolStateManager.getSessions();
+    console.log(`[EXTRACT-SCORE-STORE] Total sessions in state manager: ${allSessions.length}`);
     
     // Read search results from state
     const sessionId = getToolSessionId();
@@ -168,7 +173,7 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
       
       return JSON.stringify({
         success: false,
-        error: 'No search results found in state. Call searchWeb first.'
+        error: 'No search results found in state. You must call searchWeb first to search for articles before calling extractScoreAndStoreArticles. The correct workflow is: 1) searchWeb 2) extractScoreAndStoreArticles 3) summarizeArticle 4) collateSummary 5) sendEmail.'
       });
     }
     
