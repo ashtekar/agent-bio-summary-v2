@@ -110,8 +110,8 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     console.log(`[EXTRACT-SCORE-STORE] Tool called at: ${new Date().toISOString()}`);
     
     // Check if this is the first tool call in this execution
-    const allSessions = toolStateManager.getSessions();
-    console.log(`[EXTRACT-SCORE-STORE] Total sessions in state manager: ${allSessions.length}`);
+    const totalSessions = toolStateManager.getSessions();
+    console.log(`[EXTRACT-SCORE-STORE] Total sessions in state manager: ${totalSessions.length}`);
     
     // Read search results from state
     const sessionId = getToolSessionId();
