@@ -111,13 +111,20 @@ export class SettingsService {
         };
       }
 
-      return {
+      const result = {
         query: data?.query || 'synthetic biology biotechnology',
         maxResults: Math.min(data?.max_results || 10, 100), // Cap at 100 (Google API limit)
         dateRange: this.convertHoursToGoogleDateRange(data?.time_window || 24),
         sources: data?.sources || ['nature.com', 'science.org', 'biorxiv.org'],
         timeWindow: data?.time_window || 24
       };
+
+      console.log('📖 Retrieved search settings from database:', {
+        rawData: data,
+        processedResult: result
+      });
+
+      return result;
 
     } catch (error) {
       console.error('Error fetching search settings:', error);
@@ -248,6 +255,13 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
+      console.log('🔧 Updating search settings:', {
+        query: settings.query,
+        maxResults: settings.maxResults,
+        timeWindow: settings.timeWindow,
+        sources: settings.sources
+      });
+
       // Always use ID = 1 for singleton settings
       const updateData = {
         id: 1,
@@ -258,13 +272,18 @@ export class SettingsService {
         updated_at: new Date().toISOString()
       };
 
+      console.log('📝 Database update data:', updateData);
+
       const { error } = await this.supabase
         .from('search_settings')
         .upsert(updateData, { onConflict: 'id' });
 
       if (error) {
+        console.error('❌ Database update error:', error);
         throw new Error(`Failed to update search settings: ${error.message}`);
       }
+
+      console.log('✅ Search settings updated successfully');
 
     } catch (error) {
       console.error('Error updating search settings:', error);
