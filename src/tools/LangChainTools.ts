@@ -51,6 +51,8 @@ export const searchWebTool = new DynamicStructuredTool({
     sources: z.array(z.string()).default(['nature.com', 'science.org', 'biorxiv.org']).describe('Array of source domains to search')
   }),
   func: async (input) => {
+    console.log(`[SEARCH-WEB] Starting search with input:`, JSON.stringify(input, null, 2));
+    
     const searchSettings: SearchSettings = {
       query: input.query,
       maxResults: input.maxResults,
@@ -58,7 +60,9 @@ export const searchWebTool = new DynamicStructuredTool({
       sources: input.sources
     };
     
+    console.log(`[SEARCH-WEB] Calling searchTools.searchWeb with settings:`, JSON.stringify(searchSettings, null, 2));
     const result = await searchTools.searchWeb(searchSettings);
+    console.log(`[SEARCH-WEB] Search result:`, JSON.stringify(result, null, 2));
     
     if (result.success && result.data) {
       // Store search results in state for next tool
@@ -101,12 +105,40 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     relevancyThreshold: z.number().default(0.2).describe('Minimum relevancy score threshold (0-1 scale). Default: 0.2')
   }),
   func: async (input) => {
+    console.log(`[EXTRACT-SCORE-STORE] Called with input:`, JSON.stringify(input, null, 2));
+    
     // Read search results from state
     const sessionId = getToolSessionId();
     const state = toolStateManager.getState(sessionId);
     
     console.log(`[EXTRACT-SCORE-STORE] Session ID: ${sessionId}`);
     console.log(`[EXTRACT-SCORE-STORE] State:`, JSON.stringify(state, null, 2));
+    console.log(`[EXTRACT-SCORE-STORE] All available sessions:`, toolStateManager.getSessions());
+    
+    // Check if searchWeb was ever called by looking for any session with search results
+    const allSessions = toolStateManager.getSessions();
+    let foundSearchResults = false;
+    for (const sessionId of allSessions) {
+      const sessionState = toolStateManager.getState(sessionId);
+      if (sessionState.searchResults && sessionState.searchResults.length > 0) {
+        foundSearchResults = true;
+        console.log(`[EXTRACT-SCORE-STORE] Found search results in session ${sessionId}: ${sessionState.searchResults.length} results`);
+        break;
+      }
+    }
+    
+    if (!foundSearchResults) {
+      console.error(`[EXTRACT-SCORE-STORE] CRITICAL: No searchWeb results found in ANY session!`);
+      console.error(`[EXTRACT-SCORE-STORE] This means searchWeb was never called or failed to store results.`);
+      console.error(`[EXTRACT-SCORE-STORE] Available sessions:`, allSessions);
+      for (const sessionId of allSessions) {
+        const sessionState = toolStateManager.getState(sessionId);
+        console.error(`[EXTRACT-SCORE-STORE] Session ${sessionId} state:`, JSON.stringify(sessionState, null, 2));
+      }
+    } else {
+      console.log(`[EXTRACT-SCORE-STORE] Found search results in other sessions, but current session ${sessionId} is empty`);
+      console.log(`[EXTRACT-SCORE-STORE] This indicates a session ID mismatch between searchWeb and extractScoreAndStoreArticles`);
+    }
     
     if (!state.searchResults || state.searchResults.length === 0) {
       console.error(`[EXTRACT-SCORE-STORE] No search results found. State keys:`, Object.keys(state || {}));
@@ -114,10 +146,12 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
       
       // Try to find search results in any available session
       const allSessions = toolStateManager.getSessions();
-      for (const sessionId of allSessions) {
-        const sessionState = toolStateManager.getState(sessionId);
+      for (const sessionWithData of allSessions) {
+        const sessionState = toolStateManager.getState(sessionWithData);
         if (sessionState.searchResults && sessionState.searchResults.length > 0) {
-          console.log(`[EXTRACT-SCORE-STORE] Found search results in session ${sessionId}, using those instead`);
+          console.log(`[EXTRACT-SCORE-STORE] Found search results in session ${sessionWithData}, using those instead`);
+          console.log(`[EXTRACT-SCORE-STORE] Current session: ${sessionId}, Using session: ${sessionWithData}`);
+          
           const result = await searchTools.extractScoreAndStoreArticles(
             sessionState.searchResults,
             input.relevancyThreshold,
