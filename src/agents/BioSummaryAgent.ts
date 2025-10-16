@@ -38,8 +38,6 @@ export class BioSummaryAgent {
    */
   async execute(): Promise<ToolResult> {
     try {
-      console.log(`Starting BioSummaryAgent execution - Session: ${this.context.sessionId}`);
-      
       // Step 1: Search for articles
       await this.executeSearch();
       
@@ -52,8 +50,6 @@ export class BioSummaryAgent {
       // Step 4: Send email
       await this.executeEmail();
       
-      console.log(`BioSummaryAgent execution completed successfully - Session: ${this.context.sessionId}`);
-      
       return {
         success: true,
         data: {
@@ -65,7 +61,7 @@ export class BioSummaryAgent {
       };
       
     } catch (error) {
-      console.error(`BioSummaryAgent execution failed - Session: ${this.context.sessionId}`, error);
+      console.error(`BioSummaryAgent execution failed:`, error);
       this.context.errors.push(error as Error);
       
       return {

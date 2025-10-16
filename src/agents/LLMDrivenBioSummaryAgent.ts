@@ -596,16 +596,12 @@ export class LLMDrivenBioSummaryAgent {
 
     for (const toolCall of toolCalls) {
       try {
-        console.log(`Executing tool: ${toolCall.function.name}`);
-        
         // Parse tool arguments (should be valid JSON after preprocessing)
         let args;
         try {
           args = JSON.parse(toolCall.function.arguments);
         } catch (jsonError) {
           console.error(`JSON parsing failed for tool ${toolCall.function.name}:`, jsonError);
-          console.error(`Raw arguments length:`, toolCall.function.arguments.length);
-          console.error(`Raw arguments preview:`, toolCall.function.arguments.substring(0, 500) + '...');
           throw new Error(`Invalid JSON in tool arguments: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON parsing error'}`);
         }
         

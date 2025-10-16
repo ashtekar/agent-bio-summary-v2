@@ -28,6 +28,37 @@ export class SearchTools {
   }
 
   /**
+   * Make HTTP request with exponential backoff retry for rate limiting
+   */
+  private async makeRequestWithRetry(url: string, attempt: number = 1): Promise<Response> {
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second base delay
+    
+    try {
+      const response = await fetch(url);
+      
+      // If we get a 429 (rate limit) and haven't exceeded max retries, retry with backoff
+      if (response.status === 429 && attempt <= maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+        console.warn(`Rate limited (429). Retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.makeRequestWithRetry(url, attempt + 1);
+      }
+      
+      return response;
+    } catch (error) {
+      // If it's a network error and we haven't exceeded max retries, retry
+      if (attempt <= maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.warn(`Network error. Retrying in ${delay}ms (attempt ${attempt}/${maxRetries}):`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.makeRequestWithRetry(url, attempt + 1);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Search for articles using Google Custom Search API
    * Implements pagination to fetch up to 100 results (Google API limit: 10 per request, max 100 total)
    */
@@ -73,7 +104,7 @@ export class SearchTools {
           console.log(`Searching with restricted query: ${restrictedQuery}`);
           console.log(`Fetching results ${startIndex} to ${startIndex + resultsToFetch - 1}...`);
           
-          const response = await fetch(searchUrl.toString());
+          const response = await this.makeRequestWithRetry(searchUrl.toString(), i + 1);
           
           if (!response.ok) {
             // If pagination fails (e.g., no more results), return what we have so far
@@ -99,9 +130,9 @@ export class SearchTools {
             break;
           }
           
-          // Small delay to respect rate limits (optional but polite)
+          // Delay to respect rate limits - increased for better reliability
           if (i < numRequests - 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 500)); // Increased from 100ms to 500ms
           }
         }
         

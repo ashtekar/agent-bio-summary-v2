@@ -48,7 +48,6 @@ export class LangChainBioSummaryAgent {
       streaming: false
     });
 
-    console.log(`Initialized LangChain agent with model: ${this.context.systemSettings.llmModel}, maxTokens: 4000 (overridden for tool calling)`);
   }
 
   /**
@@ -141,28 +140,17 @@ export class LangChainBioSummaryAgent {
           },
           callbacks: [
             {
-              handleToolStart: (tool, input) => {
-                console.log(`🔧 Tool START: ${tool.name}`, JSON.stringify(input).substring(0, 200));
-              },
-              handleToolEnd: (output) => {
-                console.log(`✅ Tool END:`, typeof output, String(output).substring(0, 200));
-              },
               handleToolError: (error) => {
-                console.error(`❌ Tool ERROR:`, error);
+                console.error(`Tool error:`, error);
               }
             }
           ]
         }
       );
 
-      console.log('✅ LangChain agent execution completed');
-      console.log('Result output:', result.output);
-      console.log('Intermediate steps:', result.intermediateSteps?.length || 0);
-      
-      // Debug: Check if tools were called
+      // Check if tools were called
       if (!result.intermediateSteps || result.intermediateSteps.length === 0) {
-        console.warn('⚠️  WARNING: No tools were executed! Agent may have stopped prematurely.');
-        console.warn('This might indicate a configuration issue with the AgentExecutor.');
+        console.warn('No tools were executed - agent may have stopped prematurely');
       }
 
       // Update parent trace with outputs
