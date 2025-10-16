@@ -38,7 +38,6 @@ export class SettingsService {
 
       // If no settings exist, return defaults
       if (!data) {
-        console.log('No system settings found in database, returning defaults');
         return {
           summaryLength: 100,
           targetAudience: 'college sophomore',
@@ -103,7 +102,6 @@ export class SettingsService {
 
       // If no settings exist, return defaults
       if (!data) {
-        console.log('No search settings found in database, returning defaults');
         return {
           query: 'synthetic biology biotechnology',
           maxResults: 10,
@@ -121,10 +119,6 @@ export class SettingsService {
         timeWindow: data?.time_window || 24
       };
 
-      console.log('📖 Retrieved search settings from database:', {
-        rawData: data,
-        processedResult: result
-      });
 
       return result;
 
@@ -257,12 +251,6 @@ export class SettingsService {
         throw new Error('Supabase client not initialized');
       }
 
-      console.log('🔧 Updating search settings:', {
-        query: settings.query,
-        maxResults: settings.maxResults,
-        timeWindow: settings.timeWindow,
-        sources: settings.sources
-      });
 
       // Create new search settings record (don't update existing ones)
       const insertData = {
@@ -285,7 +273,6 @@ export class SettingsService {
         throw new Error(`Failed to update search settings: ${error.message}`);
       }
 
-      console.log('✅ Search settings updated successfully');
 
     } catch (error) {
       console.error('Error updating search settings:', error);

@@ -271,7 +271,7 @@ export class LangchainIntegration {
 
     const evaluatorModel = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: 'gpt-5-nano',
+      modelName: 'gpt-5-mini',
       maxTokens: 300,
     });
 
@@ -321,7 +321,7 @@ export class LangchainIntegration {
 
     const evaluatorModel = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: 'gpt-5-nano',
+      modelName: 'gpt-5-mini',
       maxTokens: 300,
     });
 
