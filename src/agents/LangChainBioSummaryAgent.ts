@@ -18,6 +18,11 @@ export class LangChainBioSummaryAgent {
   private parentRunId: string | null = null;
 
   constructor(initialContext: Partial<AgentContext>) {
+    // Force disable LangChain console logging
+    process.env.LANGCHAIN_VERBOSE = 'false';
+    process.env.LANGCHAIN_DEBUG = 'false';
+    process.env.LANGCHAIN_TRACING_V2 = 'false';
+    
     // Initialize context
     this.context = {
       searchSettings: initialContext.searchSettings!,
