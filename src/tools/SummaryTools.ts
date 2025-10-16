@@ -9,8 +9,12 @@ export class SummaryTools {
     temperature?: number;
     maxTokens?: number;
   }) {
-    // Create a new instance with model configuration
-    this.langchain = modelConfig ? new (langchainIntegration.constructor as any)(modelConfig) : langchainIntegration;
+    // Create a new instance with hardcoded fine-tuned model for summarization
+    this.langchain = new (langchainIntegration.constructor as any)({
+      modelName: 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1', // Fine-tuned model
+      temperature: modelConfig?.temperature || 0.3,
+      maxTokens: modelConfig?.maxTokens || 500
+    });
   }
 
   /**

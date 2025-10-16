@@ -23,17 +23,14 @@ const emailTools = new EmailTools();
 let currentSessionId: string | null = null;
 
 export function setToolSessionId(sessionId: string) {
-  console.log(`[SESSION] Setting session ID: ${sessionId} (previous: ${currentSessionId})`);
+  console.log(`[SESSION] Set: ${currentSessionId} -> ${sessionId}`);
   currentSessionId = sessionId;
 }
 
 export function getToolSessionId(): string {
   if (!currentSessionId) {
-    // Fallback for legacy usage
     currentSessionId = `session_${Date.now()}`;
-    console.log(`[SESSION] Created new session ID: ${currentSessionId}`);
-  } else {
-    console.log(`[SESSION] Using existing session ID: ${currentSessionId}`);
+    console.log(`[SESSION] Created: ${currentSessionId}`);
   }
   return currentSessionId;
 }
@@ -52,7 +49,8 @@ export const searchWebTool = new DynamicStructuredTool({
     sources: z.array(z.string()).default(['nature.com', 'science.org', 'biorxiv.org']).describe('Array of source domains to search')
   }),
   func: async (input) => {
-    console.log(`[SEARCH-WEB] Starting search with input:`, JSON.stringify(input, null, 2));
+    const sessionId = getToolSessionId();
+    console.log(`[SEARCH-WEB] Session: ${sessionId}`);
     
     const searchSettings: SearchSettings = {
       query: input.query,
@@ -61,16 +59,9 @@ export const searchWebTool = new DynamicStructuredTool({
       sources: input.sources
     };
     
-    console.log(`[SEARCH-WEB] Calling searchTools.searchWeb with settings:`, JSON.stringify(searchSettings, null, 2));
     const result = await searchTools.searchWeb(searchSettings);
-    console.log(`[SEARCH-WEB] Search result:`, JSON.stringify(result, null, 2));
     
     if (result.success && result.data) {
-      // Store search results in state for next tool
-      const sessionId = getToolSessionId();
-      console.log(`[SEARCH-WEB] Session ID: ${sessionId}`);
-      console.log(`[SEARCH-WEB] Storing ${result.data.length} search results in state`);
-      
       toolStateManager.updateState(sessionId, { 
         searchResults: result.data,
         metadata: {
@@ -80,9 +71,8 @@ export const searchWebTool = new DynamicStructuredTool({
         }
       });
       
-      console.log(`[SEARCH-WEB] State updated successfully`);
+      console.log(`[SEARCH-WEB] Stored ${result.data.length} results in session: ${sessionId}`);
       
-      // Return summary instead of full results
       return JSON.stringify({
         success: true,
         message: `Found ${result.data.length} articles. Results stored in state. Use extractScoreAndStoreArticles to process them.`,
@@ -106,65 +96,24 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     relevancyThreshold: z.number().default(0.2).describe('Minimum relevancy score threshold (0-1 scale). Default: 0.2')
   }),
   func: async (input) => {
-    console.log(`[EXTRACT-SCORE-STORE] Called with input:`, JSON.stringify(input, null, 2));
-    console.log(`[EXTRACT-SCORE-STORE] Tool called at: ${new Date().toISOString()}`);
-    
-    // Check if this is the first tool call in this execution
-    const totalSessions = toolStateManager.getSessions();
-    console.log(`[EXTRACT-SCORE-STORE] Total sessions in state manager: ${totalSessions.length}`);
+    const sessionId = getToolSessionId();
+    console.log(`[EXTRACT-SCORE-STORE] Session: ${sessionId}`);
     
     // Read search results from state
-    const sessionId = getToolSessionId();
     const state = toolStateManager.getState(sessionId);
     
-    console.log(`[EXTRACT-SCORE-STORE] Session ID: ${sessionId}`);
-    console.log(`[EXTRACT-SCORE-STORE] State:`, JSON.stringify(state, null, 2));
-    console.log(`[EXTRACT-SCORE-STORE] All available sessions:`, toolStateManager.getSessions());
-    
-    // Check if searchWeb was ever called by looking for any session with search results
-    const allSessions = toolStateManager.getSessions();
-    let foundSearchResults = false;
-    for (const sessionId of allSessions) {
-      const sessionState = toolStateManager.getState(sessionId);
-      if (sessionState.searchResults && sessionState.searchResults.length > 0) {
-        foundSearchResults = true;
-        console.log(`[EXTRACT-SCORE-STORE] Found search results in session ${sessionId}: ${sessionState.searchResults.length} results`);
-        break;
-      }
-    }
-    
-    if (!foundSearchResults) {
-      console.error(`[EXTRACT-SCORE-STORE] CRITICAL: No searchWeb results found in ANY session!`);
-      console.error(`[EXTRACT-SCORE-STORE] This means searchWeb was never called or failed to store results.`);
-      console.error(`[EXTRACT-SCORE-STORE] Available sessions:`, allSessions);
-      for (const sessionId of allSessions) {
-        const sessionState = toolStateManager.getState(sessionId);
-        console.error(`[EXTRACT-SCORE-STORE] Session ${sessionId} state:`, JSON.stringify(sessionState, null, 2));
-      }
-    } else {
-      console.log(`[EXTRACT-SCORE-STORE] Found search results in other sessions, but current session ${sessionId} is empty`);
-      console.log(`[EXTRACT-SCORE-STORE] This indicates a session ID mismatch between searchWeb and extractScoreAndStoreArticles`);
-    }
-    
     if (!state.searchResults || state.searchResults.length === 0) {
-      console.error(`[EXTRACT-SCORE-STORE] No search results found. State keys:`, Object.keys(state || {}));
-      console.error(`[EXTRACT-SCORE-STORE] Available sessions:`, toolStateManager.getSessions());
+      console.log(`[EXTRACT-SCORE-STORE] No results in session ${sessionId}, searching all sessions...`);
       
       // Try to find search results in any available session
       const allSessions = toolStateManager.getSessions();
-      console.log(`[EXTRACT-SCORE-STORE] Searching ${allSessions.length} sessions for search results...`);
       
       for (const sessionWithData of allSessions) {
         const sessionState = toolStateManager.getState(sessionWithData);
-        console.log(`[EXTRACT-SCORE-STORE] Checking session ${sessionWithData}:`, {
-          hasSearchResults: !!sessionState.searchResults,
-          searchResultsCount: sessionState.searchResults?.length || 0,
-          hasMetadata: !!sessionState.metadata
-        });
         
         if (sessionState.searchResults && sessionState.searchResults.length > 0) {
-          console.log(`[EXTRACT-SCORE-STORE] ✅ Found search results in session ${sessionWithData}, using those instead`);
-          console.log(`[EXTRACT-SCORE-STORE] Current session: ${sessionId}, Using session: ${sessionWithData}`);
+          console.log(`[EXTRACT-SCORE-STORE] Found ${sessionState.searchResults.length} results in session ${sessionWithData}`);
+          console.log(`[EXTRACT-SCORE-STORE] Updating session: ${sessionId} -> ${sessionWithData}`);
           
           // Update the current session to point to the one with data
           setToolSessionId(sessionWithData);
@@ -183,23 +132,22 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
         }
       }
       
+      console.error(`[EXTRACT-SCORE-STORE] CRITICAL: No searchWeb results found in ANY session!`);
       return JSON.stringify({
         success: false,
-        error: 'No search results found in state. You must call searchWeb first to search for articles before calling extractScoreAndStoreArticles. The correct workflow is: 1) searchWeb 2) extractScoreAndStoreArticles 3) summarizeArticle 4) collateSummary 5) sendEmail.'
+        error: 'No search results found in state. Call searchWeb first.'
       });
     }
     
-    console.log(`Processing ${state.searchResults.length} search results from state`);
+    console.log(`[EXTRACT-SCORE-STORE] Processing ${state.searchResults.length} results from session: ${sessionId}`);
     
     // Reconstruct search settings from state metadata
     const searchSettings = {
       query: state.metadata?.query || '',
       maxResults: state.searchResults.length,
-      sources: [], // Sources are not stored in metadata, but that's OK for scoring
-      dateRange: 'd7' // Default to 7 days if not specified
+      sources: [],
+      dateRange: 'd7'
     };
-    
-    console.log(`[SCORING] Using search settings: query="${searchSettings.query}"`);
     
     const result = await searchTools.extractScoreAndStoreArticles(
       state.searchResults,
@@ -266,8 +214,6 @@ export const scoreRelevancyTool = new DynamicStructuredTool({
     const userKeywords = state.metadata?.query ? 
       state.metadata.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
       [];
-    
-    console.log(`[SCORING] Using user keywords: ${userKeywords.join(', ')}`);
     
     const result = await processingTools.scoreRelevancy(
       input.articles as any,

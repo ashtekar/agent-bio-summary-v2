@@ -357,14 +357,13 @@ export class SearchTools {
         
         try {
       console.log('='.repeat(80));
-      console.log('[COMBINED TOOL] Starting extractScoreAndStoreArticles');
-      console.log(`[COMBINED TOOL] Processing ${searchResults.length} search results`);
+      console.log(`[EXTRACT-SCORE-STORE] Processing ${searchResults.length} results`);
       console.log('='.repeat(80));
 
       // ============================================================
       // PHASE 1: EXTRACTION
       // ============================================================
-      console.log('\n[PHASE 1: EXTRACTION] Extracting article content...');
+      console.log('[PHASE 1] Extracting content...');
       const extractionStartTime = Date.now();
       
       const articles: Article[] = [];
@@ -374,9 +373,7 @@ export class SearchTools {
       for (const chunk of chunks) {
         const promises = chunk.map(async (result) => {
           try {
-            console.log(`[Extract] Processing: ${result.url}`);
             const content = await this.extractArticleContent(result.url);
-            console.log(`[Extract] ✓ Extracted ${content.length} chars from ${result.title}`);
             return {
               ...result,
               content,
@@ -403,29 +400,24 @@ export class SearchTools {
       }
 
       const extractionTime = Date.now() - extractionStartTime;
-      console.log(`[PHASE 1: EXTRACTION] ✓ Completed in ${extractionTime}ms`);
-      console.log(`[PHASE 1: EXTRACTION] Successfully extracted ${articles.length} articles`);
+      console.log(`[PHASE 1] Extracted ${articles.length} articles in ${extractionTime}ms`);
 
       // ============================================================
       // PHASE 2: DUPLICATE CHECKING
       // ============================================================
-      console.log('\n[PHASE 2: DUPLICATE CHECKING] Checking for existing articles...');
+      console.log('[PHASE 2] Checking duplicates...');
       const duplicateCheckStartTime = Date.now();
       
       const existingUrls = await this.getExistingArticleUrls(articles);
-      console.log(`[DUPLICATE CHECK] Found ${existingUrls.length} existing articles out of ${articles.length} total`);
-      
       // Filter out existing articles - only process new ones
       const newArticles = articles.filter(article => !existingUrls.includes(article.url));
-      console.log(`[DUPLICATE CHECK] Processing ${newArticles.length} new articles (skipping ${articles.length - newArticles.length} duplicates)`);
-      
       const duplicateCheckTime = Date.now() - duplicateCheckStartTime;
-      console.log(`[PHASE 2: DUPLICATE CHECKING] ✓ Completed in ${duplicateCheckTime}ms`);
+      console.log(`[PHASE 2] Found ${existingUrls.length} duplicates, ${newArticles.length} new articles in ${duplicateCheckTime}ms`);
 
       // ============================================================
       // PHASE 3: SCORING (only for new articles)
       // ============================================================
-      console.log('\n[PHASE 3: SCORING] Scoring new articles for relevancy...');
+      console.log('[PHASE 3] Scoring new articles...');
       const scoringStartTime = Date.now();
       
       // Extract user keywords from search settings
@@ -433,11 +425,9 @@ export class SearchTools {
         searchSettings.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
         [];
       
-      console.log(`[SCORING] Using user keywords: ${userKeywords.join(', ')}`);
       
       const scoredNewArticles = newArticles.map(article => {
         const score = this.calculateRelevancyScore(article, userKeywords);
-        console.log(`[Score] ${article.title}: ${score.toFixed(3)} (keywords: ${userKeywords.length})`);
         return {
           ...article,
           relevancyScore: score
@@ -446,26 +436,24 @@ export class SearchTools {
 
       // Filter by relevancy threshold (from system settings, default 0.2)
       const threshold = relevancyThreshold;
-      console.log(`[PHASE 3: SCORING] Using relevancy threshold: ${threshold} (from system settings)`);
       const relevantNewArticles = scoredNewArticles.filter(article => article.relevancyScore >= threshold);
       
       // Sort by relevancy score (highest first)
       relevantNewArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
 
       const scoringTime = Date.now() - scoringStartTime;
-      console.log(`[PHASE 3: SCORING] ✓ Completed in ${scoringTime}ms`);
-      console.log(`[PHASE 3: SCORING] ${relevantNewArticles.length}/${scoredNewArticles.length} new articles passed threshold (${threshold})`);
+      console.log(`[PHASE 3] Scored ${scoredNewArticles.length} articles, ${relevantNewArticles.length} passed threshold in ${scoringTime}ms`);
 
       // ============================================================
       // PHASE 4: STORAGE (only new relevant articles)
       // ============================================================
-      console.log('\n[PHASE 4: STORAGE] Storing new relevant articles in database...');
+      console.log('[PHASE 4] Storing articles...');
       const storageStartTime = Date.now();
       
       if (!this.supabase) {
-        console.warn('[PHASE 4: STORAGE] ⚠ Supabase client not initialized, skipping storage');
+        console.warn('[PHASE 4] Supabase not initialized, skipping storage');
       } else if (relevantNewArticles.length === 0) {
-        console.log('[PHASE 4: STORAGE] No new relevant articles to store');
+        console.log('[PHASE 4] No relevant articles to store');
       } else {
         // Prepare articles for database insertion
         const articlesToStore = relevantNewArticles.map(article => ({
@@ -494,20 +482,20 @@ export class SearchTools {
         if (error) {
           console.warn(`[PHASE 4: STORAGE] ⚠ Database upsert failed: ${error.message}`);
         } else {
-          console.log(`[PHASE 4: STORAGE] ✓ Successfully stored ${data.length} new articles`);
+          console.log(`[PHASE 4] Stored ${data.length} articles`);
         }
       }
 
       const storageTime = Date.now() - storageStartTime;
       const totalTime = Date.now() - startTime;
 
-      console.log(`[PHASE 4: STORAGE] ✓ Completed in ${storageTime}ms`);
+      console.log(`[PHASE 4] Completed in ${storageTime}ms`);
       
       // ============================================================
       // SUMMARY
       // ============================================================
       console.log('\n' + '='.repeat(80));
-      console.log('[COMBINED TOOL] Execution Summary:');
+      console.log('[EXTRACT-SCORE-STORE] Summary:');
       console.log(`  • Total Time: ${totalTime}ms`);
       console.log(`  • Extraction: ${extractionTime}ms (${articles.length} articles)`);
       console.log(`  • Duplicate Check: ${duplicateCheckTime}ms (${articles.length - newArticles.length} duplicates skipped)`);
