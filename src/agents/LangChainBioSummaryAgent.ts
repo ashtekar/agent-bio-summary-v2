@@ -18,10 +18,10 @@ export class LangChainBioSummaryAgent {
   private parentRunId: string | null = null;
 
   constructor(initialContext: Partial<AgentContext>) {
-    // Force disable LangChain console logging
+    // Force disable LangChain console logging but keep tracing
     process.env.LANGCHAIN_VERBOSE = 'false';
     process.env.LANGCHAIN_DEBUG = 'false';
-    process.env.LANGCHAIN_TRACING_V2 = 'false';
+    // Keep LANGCHAIN_TRACING_V2 enabled for LangSmith UI
     
     // Initialize context
     this.context = {
