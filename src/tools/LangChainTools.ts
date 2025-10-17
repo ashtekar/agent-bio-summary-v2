@@ -252,26 +252,68 @@ export const storeArticlesTool = new DynamicStructuredTool({
  */
 export const summarizeArticleTool = new DynamicStructuredTool({
   name: 'summarizeArticle',
-  description: 'Generate comprehensive summaries (minimum 100 words each) for articles. Automatically evaluates quality using LLM-as-a-judge. IMPORTANT: Process MAX 2 articles per call to avoid token limits.',
+  description: 'Generate comprehensive summaries for stored articles. Reads from state (populated by extractScoreAndStoreArticles). Process 2 articles per call for quality. Use multiple calls with different startIndex to process all articles (e.g., startIndex=0 for first 2, startIndex=2 for next 2, etc.). IMPORTANT: Call extractScoreAndStoreArticles first.',
   schema: z.object({
-    articles: z.array(z.object({
-      id: z.string(),
-      title: z.string(),
-      content: z.string(),
-      url: z.string(),
-      source: z.string().optional(),
-      relevancyScore: z.number().optional()
-    })).max(2).describe('Array of articles to summarize (MAX 2 per call)')
+    batchSize: z.number().default(2).describe('Number of articles to process in this batch (max: 2 per call for quality)'),
+    startIndex: z.number().default(0).describe('Starting index in stored articles array (for batching)')
   }),
   func: async (input) => {
-    // Apply smart truncation before passing to summary tool
-    const truncatedArticles = input.articles.map(article => ({
+    const sessionId = getToolSessionId();
+    const state = toolStateManager.getState(sessionId);
+    
+    // Read stored articles from state
+    const storedArticles = state.storedArticles || state.extractedArticles || state.scoredArticles;
+    
+    if (!storedArticles || storedArticles.length === 0) {
+      return JSON.stringify({
+        success: false,
+        error: 'No articles found in state. Call extractScoreAndStoreArticles first.'
+      });
+    }
+    
+    // Calculate batch based on startIndex and batchSize (max 2)
+    const batchSize = Math.min(input.batchSize || 2, 2);
+    const startIndex = input.startIndex || 0;
+    const endIndex = startIndex + batchSize;
+    
+    // Get articles for this batch
+    const articlesToSummarize = storedArticles.slice(startIndex, endIndex);
+    
+    if (articlesToSummarize.length === 0) {
+      return JSON.stringify({
+        success: true,
+        message: `No more articles to process (startIndex ${startIndex} exceeds available articles)`,
+        data: [],
+        totalArticles: storedArticles.length,
+        processedCount: 0
+      });
+    }
+    
+    // Truncate content for safety
+    const truncatedArticles = articlesToSummarize.map(article => ({
       ...article,
-      content: article.content.substring(0, 2500) // Limit content
+      content: article.content?.substring(0, 2500) || ''
     }));
     
     const result = await summaryTools.summarizeArticle(truncatedArticles as any);
-    return JSON.stringify(result);
+    
+    // Store summaries in state for collateSummary (append to existing)
+    if (result.success && result.data) {
+      toolStateManager.updateState(sessionId, {
+        summaries: [...(state.summaries || []), ...result.data]
+      });
+    }
+    
+    return JSON.stringify({
+      ...result,
+      batchInfo: {
+        processedCount: articlesToSummarize.length,
+        startIndex,
+        endIndex,
+        totalArticles: storedArticles.length,
+        remainingArticles: Math.max(0, storedArticles.length - endIndex)
+      }
+    });
   }
 });
 

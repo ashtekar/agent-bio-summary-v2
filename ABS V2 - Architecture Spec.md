@@ -352,17 +352,6 @@ Quality Scores → Annotations (Linked to Traces)
 - **Granularity**: Inputs, outputs, duration, success/failure, metadata
 - **Annotations**: Quality scores (0-1 scale) with pass/fail threshold (0.5)
 
-### Current Limitations (Fixed in Week 3)
-- ❌ Traces are flat (not hierarchical tree)
-- ❌ No parent agent run linking child tools
-- ✅ Workaround: Filter by session ID in dashboard
-
-### Future Enhancements (Week 3+)
-- ✅ Hierarchical traces (parent agent → child tools)
-- ✅ Visual workflow tree in LangSmith
-- ✅ Automatic parent-child linking via LangChain Agent
-- ✅ Prompt versioning and A/B testing (Week 4)
-
 ## 🗂️ State Management Pattern
 
 ### Problem Statement

@@ -82,14 +82,6 @@ interface LangchainIntegration {
 }
 ```
 
-### Current Status (Week 1 & 2 Complete)
-- ✅ **LangSmith Tracing**: All tools and LangChain operations traced
-- ✅ **Eval Integration**: LLM-as-a-judge scores every summary (GPT-4o-mini)
-- ✅ **Annotations**: Quality scores linked to traces in LangSmith
-- ✅ **Tool Tracing**: searchWeb, extract, score, store, email all traced
-- ⏳ **Week 3 (Future)**: Migrate agent to LangChain AgentExecutor for hierarchical traces
-- ⏳ **Week 4 (Future)**: Move prompts to LangSmith Hub for version control
-
 ## 4. Database Schema (Copied from V1)
 
 All existing tables will be copied to the new Supabase project:
@@ -104,7 +96,7 @@ All existing tables will be copied to the new Supabase project:
 
 ## 5. Error Handling & Tracing ✅ **IMPLEMENTED**
 
-### LangSmith Tracing (Week 1 & 2 Complete)
+### LangSmith Tracing 
 - ✅ **All Tool Executions Traced**: searchWeb, extract, score, store, email
 - ✅ **LangChain Auto-Tracing**: Summarization and collation chains automatically traced
 - ✅ **Evaluation Tracing**: LLM-as-a-judge evaluations traced with GPT-4o-mini
@@ -127,7 +119,7 @@ All existing tables will be copied to the new Supabase project:
 
 ## 6. Key Differences from V1
 
-| Aspect | V1 (Current) | V2 (Agentic - Current State) | V2 (Future - Week 3+) |
+| Aspect | V1 (Current) | V2 (Agentic - Current State) | V2 (Future) |
 |--------|--------------|------------------------------|----------------------|
 | **Flow** | Linear process | Agent with tool calls (OpenAI SDK) | LangChain AgentExecutor |
 | **Prompts** | Hardcoded in code | LangChain PromptTemplate (hardcoded) | LangSmith Prompt Hub |
@@ -139,9 +131,8 @@ All existing tables will be copied to the new Supabase project:
 | **Observability** | Console logs only | ✅ LangSmith dashboard | ✅ + Quality dashboards |
 | **Cost Tracking** | Manual estimation | ✅ Automatic per operation | ✅ + Trend analysis |
 
-## 7. Dependencies
 
-### ✅ Already Added (Week 1 & 2)
+### ✅ Already Added 
 ```json
 {
   "dependencies": {
@@ -166,7 +157,7 @@ All existing tables will be copied to the new Supabase project:
 
 **Note:** LangChain wraps OpenAI SDK (doesn't replace it). All OpenAI models, API keys, and SDK remain in use.
 
-## 8. Agent Context Elaboration
+## 7. Agent Context Elaboration
 
 The agent will maintain context between tool calls including:
 
@@ -215,7 +206,7 @@ This context allows the agent to:
 - Track progress for monitoring
 - Enable debugging and optimization
 
-## 9. Tool Optimization for Cost, Latency & Throughput
+## 8. Tool Optimization for Cost, Latency & Throughput
 
 ### Combined Tools Strategy
 1. **Search + Extract**: Combine web search and article extraction to reduce API calls

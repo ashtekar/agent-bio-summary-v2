@@ -101,12 +101,6 @@ graph TB
   - Extracts full article content from URLs
   - Scores articles for synthetic biology relevancy
   - Stores relevant articles (score >= threshold) in database
-  - Single efficient operation instead of three separate tools
-
-### **Legacy Tools** (Individual Operations)
-- **`extractArticles`**: Extract full content from URLs (use combined tool instead)
-- **`scoreRelevancy`**: Score articles for relevance (use combined tool instead)
-- **`storeArticles`**: Database storage (use combined tool instead)
 
 ### **Content Generation**
 - **`summarizeArticle`**: Individual article summarization with quality requirements
@@ -134,19 +128,6 @@ graph TB
   - Faster execution (no serialization overhead)
 - **Lifecycle**: Created at agent start → populated by tools → cleared at completion
 - **Isolation**: Each session (daily run) has independent state
-
-### **Data Flow**
-```
-searchWeb → stores 100 results in state → returns "Found 100 articles"
-         ↓
-extractScoreAndStore → reads 100 results from state → processes them
-```
-
-### **Search API Limits**
-- **Google Custom Search**: 10 results per request, 100 results maximum
-- **Pagination**: Automatic (up to 10 requests to fetch 100 results)
-- **UI Validation**: Max articles capped at 100 with client-side validation
-- **Backend Validation**: Settings service enforces 100 limit when reading/writing
 
 ## 🔍 Observability & Quality Tracking
 
@@ -192,28 +173,6 @@ You can run A/B tests on:
 - **Temperature settings** (creativity vs consistency)
 
 
-## 🧪 Testing
-
-### **Test Suite**
-
-```bash
-# Unit tests
-npm test
-
-# Integration tests
-npm run test:integration
-
-# End-to-end tests
-npm run test:e2e
-```
-
-### **Test Coverage**
-
-- **Unit Tests**: Individual component testing with mocked dependencies
-- **Integration Tests**: External service connectivity and API validation
-- **E2E Tests**: Complete workflow testing with real external services
-
-
 ## 📚 Documentation
 
 ### **Architecture & Design**
@@ -226,12 +185,5 @@ npm run test:e2e
 - **[Prompts for Upload](./docs/prompts-for-hub-upload.md)**: All 5 prompt templates for Hub
 - **[LangChain Migration Plan](./LANGCHAIN-MIGRATION-PLAN.md)**: Migration strategy and status
 
-### **Testing**
-- **[Testing Guide](./TESTING.md)**: Comprehensive testing documentation
-- **[Integration Testing](./INTEGRATION-TESTING-PLAN.md)**: External service testing
 
-### **Threads & History**
-- **[Threads Database Schema](./docs/THREADS-DB-SCHEMA.md)**: Thread tracking table structure
-- **[Threads Implementation](./docs/THREADS-IMPLEMENTATION.md)**: Thread-based execution tracking
-- **[Threads Setup Guide](./docs/THREADS-SETUP-GUIDE.md)**: How to set up thread tracking
 
