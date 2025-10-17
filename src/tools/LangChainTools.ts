@@ -322,19 +322,39 @@ export const summarizeArticleTool = new DynamicStructuredTool({
  */
 export const collateSummaryTool = new DynamicStructuredTool({
   name: 'collateSummary',
-  description: 'Combine individual article summaries into a single HTML email newsletter format. Automatically evaluates final quality using LLM-as-a-judge.',
+  description: 'Combine individual article summaries into a single HTML email newsletter format. Reads summaries from state (populated by summarizeArticle). Automatically evaluates final quality using LLM-as-a-judge. IMPORTANT: Call summarizeArticle first to generate summaries.',
   schema: z.object({
-    summaries: z.array(z.object({
-      articleId: z.string(),
-      summary: z.string(),
-      keyPoints: z.array(z.string()).optional(),
-      qualityScore: z.number(),
-      evaluationResults: z.any().optional()
-    })).describe('Array of article summaries to collate')
+    // No parameters needed - reads all summaries from state
   }),
   func: async (input) => {
-    const result = await summaryTools.collateSummary(input.summaries as any);
-    return JSON.stringify(result);
+    const sessionId = getToolSessionId();
+    const state = toolStateManager.getState(sessionId);
+    
+    // Read summaries from state
+    const summaries = state.summaries;
+    
+    if (!summaries || summaries.length === 0) {
+      return JSON.stringify({
+        success: false,
+        error: 'No summaries found in state. Call summarizeArticle first to generate summaries.'
+      });
+    }
+    
+    console.log(`[COLLATE-SUMMARY] Collating ${summaries.length} summaries from state`);
+    
+    const result = await summaryTools.collateSummary(summaries as any);
+    
+    // Store collated summary in state for sendEmail
+    if (result.success && result.data) {
+      toolStateManager.updateState(sessionId, {
+        collatedSummary: result.data
+      });
+    }
+    
+    return JSON.stringify({
+      ...result,
+      summaryCount: summaries.length
+    });
   }
 });
 

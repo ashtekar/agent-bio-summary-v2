@@ -12,6 +12,7 @@ interface ToolState {
   scoredArticles?: any[];
   storedArticles?: any[];
   summaries?: any[];
+  collatedSummary?: any;
   finalSummary?: string;
   metadata?: Record<string, any>;
 }
