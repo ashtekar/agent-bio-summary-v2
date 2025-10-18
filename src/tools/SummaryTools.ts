@@ -9,9 +9,9 @@ export class SummaryTools {
     temperature?: number;
     maxTokens?: number;
   }) {
-    // Create a new instance with hardcoded fine-tuned model for summarization
+    // Create a new instance with gpt-4o-mini for collation
     this.langchain = new (langchainIntegration.constructor as any)({
-      modelName: 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1', // Fine-tuned model
+      modelName: 'gpt-4o-mini', // Using gpt-4o-mini for collation
       temperature: modelConfig?.temperature || 0.3,
       maxTokens: modelConfig?.maxTokens || 500
     });

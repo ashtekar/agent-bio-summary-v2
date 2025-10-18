@@ -299,8 +299,10 @@ export const summarizeArticleTool = new DynamicStructuredTool({
     
     // Store summaries in state for collateSummary (append to existing)
     if (result.success && result.data) {
+      // Read fresh state to avoid race condition
+      const currentState = toolStateManager.getState(sessionId);
       toolStateManager.updateState(sessionId, {
-        summaries: [...(state.summaries || []), ...result.data]
+        summaries: [...(currentState.summaries || []), ...result.data]
       });
     }
     
