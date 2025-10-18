@@ -41,12 +41,18 @@ export class LangchainIntegration {
     }
 
     // Initialize OpenAI chat model with configurable settings
-    this.chatModel = new ChatOpenAI({
+    const chatModelConfig: any = {
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: modelConfig?.modelName || 'gpt-4o-mini',
-      temperature: modelConfig?.temperature || 0.3,
       maxTokens: modelConfig?.maxTokens || 500,
-    });
+    };
+
+    // Only set temperature if it's explicitly provided (some models like gpt-5-nano don't support it)
+    if (modelConfig?.temperature !== undefined) {
+      chatModelConfig.temperature = modelConfig.temperature;
+    }
+
+    this.chatModel = new ChatOpenAI(chatModelConfig);
 
     // Initialize prompts storage and cache
     this.prompts = new Map();

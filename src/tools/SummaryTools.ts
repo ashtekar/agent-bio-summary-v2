@@ -12,7 +12,7 @@ export class SummaryTools {
     // Create a new instance with gpt-5-nano for collation
     this.langchain = new (langchainIntegration.constructor as any)({
       modelName: 'gpt-5-nano', // Using gpt-5-nano for collation
-      // Remove temperature (not supported by gpt-5-nano)
+      temperature: undefined, // Explicitly set to undefined (not supported by gpt-5-nano)
       maxTokens: modelConfig?.maxTokens || 2000,
       reasoning_effort: 'minimal' // Reduce token consumption
     });
