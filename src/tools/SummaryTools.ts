@@ -9,11 +9,12 @@ export class SummaryTools {
     temperature?: number;
     maxTokens?: number;
   }) {
-    // Create a new instance with gpt-4o-mini for collation
+    // Create a new instance with gpt-5-nano for collation
     this.langchain = new (langchainIntegration.constructor as any)({
-      modelName: 'gpt-4o-mini', // Using gpt-4o-mini for collation
-      temperature: modelConfig?.temperature || 0.3,
-      maxTokens: modelConfig?.maxTokens || 500
+      modelName: 'gpt-5-nano', // Using gpt-5-nano for collation
+      // Remove temperature (not supported by gpt-5-nano)
+      maxTokens: modelConfig?.maxTokens || 2000,
+      reasoning_effort: 'minimal' // Reduce token consumption
     });
   }
 
