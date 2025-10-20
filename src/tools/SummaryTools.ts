@@ -17,12 +17,11 @@ export class SummaryTools {
       maxTokens: modelConfig?.maxTokens || 500,
     });
 
-    // Instance for collation only (gpt-5-nano)
+    // Instance for collation only (fine-tuned gpt-4.1-nano)
     this.collationLangchain = new (langchainIntegration.constructor as any)({
-      modelName: 'gpt-5-nano',
-      temperature: undefined, // Not supported by gpt-5-nano
+      modelName: 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1',
+      temperature: 0.3, // Fine-tuned models support temperature
       maxTokens: 2000,
-      reasoning_effort: 'minimal'
     });
   }
 
