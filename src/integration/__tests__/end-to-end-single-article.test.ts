@@ -44,7 +44,11 @@ describe('End-to-End Single Article Test', () => {
     // Initialize tools
     searchTools = new SearchTools();
     processingTools = new ProcessingTools();
-    summaryTools = new SummaryTools(testSystemSettings);
+    summaryTools = new SummaryTools({
+      modelName: testSystemSettings.llmModel,
+      temperature: testSystemSettings.llmTemperature,
+      maxTokens: testSystemSettings.llmMaxTokens
+    });
     emailTools = new EmailTools(); // Remove sessionId parameter
     
     // Setup spies
