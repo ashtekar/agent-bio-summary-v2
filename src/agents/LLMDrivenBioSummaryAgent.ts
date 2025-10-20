@@ -161,15 +161,15 @@ export class LLMDrivenBioSummaryAgent {
 
       try {
         const response = await this.openai.chat.completions.create({
-          model: this.context.systemSettings.llmModel,
+          model: 'gpt-4o-mini',  // Hard-coded for cost-effective orchestration
           messages,
           tools: getAllToolDefinitions().map(tool => ({
             type: 'function' as const,
             function: tool
           })),
           tool_choice: 'auto',
-          temperature: this.context.systemSettings.llmTemperature,
-          max_tokens: this.context.systemSettings.llmMaxTokens
+          temperature: 0.3,
+          max_tokens: 1000
         });
 
         const message = response.choices[0]?.message;

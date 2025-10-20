@@ -16,7 +16,11 @@ import { toolStateManager } from './ToolState';
 // Initialize tool instances
 const searchTools = new SearchTools();
 const processingTools = new ProcessingTools();
-const summaryTools = new SummaryTools();
+const summaryTools = new SummaryTools({
+  modelName: 'gpt-4o-mini',  // Default for LangChain agent path
+  temperature: 0.3,
+  maxTokens: 500
+});
 const emailTools = new EmailTools();
 
 // Session ID for the current execution (will be set by agent)

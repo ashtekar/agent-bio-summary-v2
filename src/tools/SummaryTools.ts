@@ -2,19 +2,27 @@ import { Article, ArticleSummary, ToolResult, EvaluationResult } from '@/types/a
 import { langchainIntegration } from '@/lib/langchain';
 
 export class SummaryTools {
-  private langchain: any;
+  private summarizationLangchain: any;  // For individual articles
+  private collationLangchain: any;      // For collation only
 
   constructor(modelConfig?: {
     modelName?: string;
     temperature?: number;
     maxTokens?: number;
   }) {
-    // Create a new instance with gpt-5-nano for collation
-    this.langchain = new (langchainIntegration.constructor as any)({
-      modelName: 'gpt-5-nano', // Using gpt-5-nano for collation
-      temperature: undefined, // Explicitly set to undefined (not supported by gpt-5-nano)
-      maxTokens: modelConfig?.maxTokens || 2000,
-      reasoning_effort: 'minimal' // Reduce token consumption
+    // Instance for individual article summarization (user-selected model)
+    this.summarizationLangchain = new (langchainIntegration.constructor as any)({
+      modelName: modelConfig?.modelName || 'gpt-4o-mini',
+      temperature: modelConfig?.temperature || 0.3,
+      maxTokens: modelConfig?.maxTokens || 500,
+    });
+
+    // Instance for collation only (gpt-5-nano)
+    this.collationLangchain = new (langchainIntegration.constructor as any)({
+      modelName: 'gpt-5-nano',
+      temperature: undefined, // Not supported by gpt-5-nano
+      maxTokens: 2000,
+      reasoning_effort: 'minimal'
     });
   }
 
@@ -37,14 +45,14 @@ export class SummaryTools {
         const promises = chunk.map(async (article) => {
           try {
             // Generate summary using Langchain
-            const summaryResult = await this.langchain.generateSummary({
+            const summaryResult = await this.summarizationLangchain.generateSummary({
               title: article.title,
               url: article.url,
               content: article.content.substring(0, 4000) // Limit content length
             });
             
             // Evaluate the summary quality using LLM-as-a-judge
-            const evaluationResult = await this.langchain.evaluateSummary({
+            const evaluationResult = await this.summarizationLangchain.evaluateSummary({
               title: article.title,
               url: article.url,
               summary: summaryResult.summary
@@ -52,7 +60,7 @@ export class SummaryTools {
             
             // Link evaluation score to trace via annotation
             if (summaryResult.runId) {
-              await this.langchain.addAnnotation({
+              await this.summarizationLangchain.addAnnotation({
                 runId: summaryResult.runId,
                 annotation: {
                   type: evaluationResult.overallScore >= 0.5 ? 'pass' : 'fail',
@@ -141,17 +149,17 @@ export class SummaryTools {
 
       // Generate collated summary using Langchain
       const summaryTexts = qualitySummaries.map(s => s.summary);
-      const collatedResult = await this.langchain.generateCollatedSummary(summaryTexts);
+      const collatedResult = await this.collationLangchain.generateCollatedSummary(summaryTexts);
       
       // Evaluate the collated summary using LLM-as-a-judge
-      const evaluationResult = await this.langchain.evaluateCollatedSummary(
+      const evaluationResult = await this.collationLangchain.evaluateCollatedSummary(
         collatedResult.summary, 
         qualitySummaries.length
       );
       
       // Link collated evaluation score to trace via annotation
       if (collatedResult.runId) {
-        await this.langchain.addAnnotation({
+        await this.collationLangchain.addAnnotation({
           runId: collatedResult.runId,
           annotation: {
             type: evaluationResult.overallScore >= 0.5 ? 'pass' : 'fail',

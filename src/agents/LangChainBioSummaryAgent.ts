@@ -44,12 +44,12 @@ export class LangChainBioSummaryAgent {
 
     // Initialize LangChain ChatOpenAI model
     // Note: Using 4000 maxTokens to allow for large tool call arguments (e.g., passing multiple search results)
-    // The DB setting (llmMaxTokens) is too low for tool-calling agents
+    // Hard-coded gpt-4o-mini for cost-effective orchestration
     this.llm = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: this.context.systemSettings.llmModel,
-      temperature: this.context.systemSettings.llmTemperature,
-      maxTokens: 4000, // Override DB setting - tool calls need more tokens
+      modelName: 'gpt-4o-mini',  // Hard-coded for cost-effective orchestration
+      temperature: 0.3,
+      maxTokens: 4000, // Tool calls need more tokens
       streaming: false
     });
 
