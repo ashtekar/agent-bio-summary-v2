@@ -50,32 +50,6 @@ export class SummaryTools {
               content: article.content.substring(0, 4000) // Limit content length
             });
             
-            // Evaluate the summary quality using LLM-as-a-judge
-            const evaluationResult = await this.summarizationLangchain.evaluateSummary({
-              title: article.title,
-              url: article.url,
-              summary: summaryResult.summary
-            });
-            
-            // Link evaluation score to trace via annotation
-            if (summaryResult.runId) {
-              await this.summarizationLangchain.addAnnotation({
-                runId: summaryResult.runId,
-                annotation: {
-                  type: evaluationResult.overallScore >= 0.5 ? 'pass' : 'fail',
-                  score: evaluationResult.overallScore,
-                  feedback: evaluationResult.feedback,
-                  evaluator: 'gpt-4o-mini',
-                  metadata: {
-                    coherence: evaluationResult.coherence,
-                    accuracy: evaluationResult.accuracy,
-                    completeness: evaluationResult.completeness,
-                    readability: evaluationResult.readability
-                  }
-                }
-              });
-            }
-            
             totalCost += summaryResult.cost;
             totalTokens += summaryResult.tokens;
             
@@ -83,8 +57,15 @@ export class SummaryTools {
               articleId: article.id,
               summary: summaryResult.summary,
               keyPoints: this.extractKeyPoints(summaryResult.summary),
-              qualityScore: evaluationResult.overallScore,
-              evaluationResults: evaluationResult
+              qualityScore: 0, // Will be evaluated by LangSmith UI evaluators
+              evaluationResults: {
+                coherence: 0,
+                accuracy: 0,
+                completeness: 0,
+                readability: 0,
+                overallScore: 0,
+                feedback: 'Evaluation will be performed by LangSmith UI evaluators'
+              }
             } as ArticleSummary;
             
           } catch (error) {
@@ -150,34 +131,7 @@ export class SummaryTools {
       const summaryTexts = qualitySummaries.map(s => s.summary);
       const collatedResult = await this.collationLangchain.generateCollatedSummary(summaryTexts);
       
-      // Evaluate the collated summary using LLM-as-a-judge
-      const evaluationResult = await this.collationLangchain.evaluateCollatedSummary(
-        collatedResult.summary, 
-        qualitySummaries.length
-      );
-      
-      // Link collated evaluation score to trace via annotation
-      if (collatedResult.runId) {
-        await this.collationLangchain.addAnnotation({
-          runId: collatedResult.runId,
-          annotation: {
-            type: evaluationResult.overallScore >= 0.5 ? 'pass' : 'fail',
-            score: evaluationResult.overallScore,
-            feedback: evaluationResult.feedback,
-            evaluator: 'gpt-4o-mini',
-            metadata: {
-              coherence: evaluationResult.coherence,
-              accuracy: evaluationResult.accuracy,
-              completeness: evaluationResult.completeness,
-              readability: evaluationResult.readability,
-              summaryCount: qualitySummaries.length,
-              evaluationType: 'collated_summary'
-            }
-          }
-        });
-      }
-      
-      console.log(`Successfully collated summaries (Quality score: ${evaluationResult.overallScore})`);
+      console.log(`Successfully collated summaries (Quality evaluation will be performed by LangSmith UI evaluators)`);
       
       return {
         success: true,

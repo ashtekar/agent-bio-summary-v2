@@ -1,0 +1,43 @@
+{
+  "title": "extract",
+  "description": "Extract information from the user's response.",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string",
+      "description": "Reasoning for the score"
+    },
+    "simple_terminology": {
+      "type": "number",
+      "description": "Does the summary have terminology that might be hard to understand?| Min (0): easy terminology| Max (1): difficult terminology",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "clear_concept": {
+      "type": "number",
+      "description": "Does the summary explain the concept behind the article such that it’s easy to understand?| Min (0): easy concept| Max (1): difficult concept",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "clear_methodology": {
+      "type": "number",
+      "description": "Does the summary explain the methods, practices and approaches used to come up with novel findings or conclusions?| Min (0): methodology NOT explained| Max (1): methodology explained",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "balanced_details": {
+      "type": "number",
+      "description": "Does the summary have enough & balanced details about the concept, methods, findings, conclusions and impact to be engaging?| Min (0): detailes NOT balanced| Max (1): details are balanced",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": [
+    "simple_terminology",
+    "clear_concept",
+    "clear_methodology",
+    "balanced_details",
+    "comment"
+  ],
+  "strict": true
+}

@@ -257,6 +257,7 @@ export class LangchainIntegration {
 
   /**
    * Evaluate summary quality using LLM-as-a-judge
+   * @deprecated This method is deprecated. Use LangSmith UI evaluators instead.
    */
   async evaluateSummary(params: {
     title: string;
@@ -270,6 +271,8 @@ export class LangchainIntegration {
     overallScore: number;
     feedback: string;
   }> {
+    console.warn('This method is deprecated. Use LangSmith UI evaluators instead.');
+    
     const prompt = await this.getPrompt('evaluation');
     if (!prompt) {
       throw new Error('Evaluation prompt not found');
@@ -312,6 +315,7 @@ export class LangchainIntegration {
 
   /**
    * Evaluate collated summary quality
+   * @deprecated This method is deprecated. Use LangSmith UI evaluators instead.
    */
   async evaluateCollatedSummary(summary: string, count: number): Promise<{
     coherence: number;
@@ -321,6 +325,8 @@ export class LangchainIntegration {
     overallScore: number;
     feedback: string;
   }> {
+    console.warn('This method is deprecated. Use LangSmith UI evaluators instead.');
+    
     const prompt = await this.getPrompt('collatedEvaluation');
     if (!prompt) {
       throw new Error('Collated evaluation prompt not found');
