@@ -256,7 +256,7 @@ export const storeArticlesTool = new DynamicStructuredTool({
  */
 export const summarizeArticleTool = new DynamicStructuredTool({
   name: 'summarizeArticle',
-  description: 'Generate comprehensive summaries for stored articles. Reads from state (populated by extractScoreAndStoreArticles). Process 2 articles per call for quality. Use multiple calls with different startIndex to process all articles (e.g., startIndex=0 for first 2, startIndex=2 for next 2, etc.). IMPORTANT: Call extractScoreAndStoreArticles first.',
+  description: 'Generate comprehensive summaries for stored articles. Reads from state (populated by extractScoreAndStoreArticles). Processes articles in batches (max 2 per call). Use startIndex to specify which articles to process. Returns batchInfo showing progress. IMPORTANT: Call extractScoreAndStoreArticles first.',
   schema: z.object({
     batchSize: z.number().default(2).describe('Number of articles to process in this batch (max: 2 per call for quality)'),
     startIndex: z.number().default(0).describe('Starting index in stored articles array (for batching)')
@@ -317,7 +317,8 @@ export const summarizeArticleTool = new DynamicStructuredTool({
         startIndex,
         endIndex,
         totalArticles: storedArticles.length,
-        remainingArticles: Math.max(0, storedArticles.length - endIndex)
+        remainingArticles: Math.max(0, storedArticles.length - endIndex),
+        allArticlesProcessed: endIndex >= storedArticles.length  // NEW: Clear completion signal
       }
     });
   }
