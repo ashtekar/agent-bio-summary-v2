@@ -256,10 +256,9 @@ export const storeArticlesTool = new DynamicStructuredTool({
  */
 export const summarizeArticleTool = new DynamicStructuredTool({
   name: 'summarizeArticle',
-  description: 'Generate comprehensive summaries for stored articles. Reads from state (populated by extractScoreAndStoreArticles). Processes articles in batches (max 2 per call). Use startIndex to specify which articles to process. Returns batchInfo showing progress. IMPORTANT: Call extractScoreAndStoreArticles first.',
+  description: 'Generate comprehensive summaries for ALL stored articles. Reads from state (populated by extractScoreAndStoreArticles). Automatically processes all articles in batches of 2 to avoid JSON limits. Returns all summaries at once. IMPORTANT: Call extractScoreAndStoreArticles first.',
   schema: z.object({
-    batchSize: z.number().default(2).describe('Number of articles to process in this batch (max: 2 per call for quality)'),
-    startIndex: z.number().default(0).describe('Starting index in stored articles array (for batching)')
+    // No parameters needed - automatically processes all articles
   }),
   func: async (input) => {
     const sessionId = getToolSessionId();
@@ -275,50 +274,47 @@ export const summarizeArticleTool = new DynamicStructuredTool({
       });
     }
     
-    // Calculate batch based on startIndex and batchSize (max 2)
-    const batchSize = Math.min(input.batchSize || 2, 2);
-    const startIndex = input.startIndex || 0;
-    const endIndex = startIndex + batchSize;
+    console.log(`[SUMMARIZE-ALL] Processing ${storedArticles.length} articles automatically`);
     
-    // Get articles for this batch
-    const articlesToSummarize = storedArticles.slice(startIndex, endIndex);
+    // Process all articles in batches of 2 internally
+    const batchSize = 2;
+    const allSummaries = [];
     
-    if (articlesToSummarize.length === 0) {
-      return JSON.stringify({
-        success: true,
-        message: `No more articles to process (startIndex ${startIndex} exceeds available articles)`,
-        data: [],
-        totalArticles: storedArticles.length,
-        processedCount: 0
-      });
+    for (let startIndex = 0; startIndex < storedArticles.length; startIndex += batchSize) {
+      const endIndex = Math.min(startIndex + batchSize, storedArticles.length);
+      const batchArticles = storedArticles.slice(startIndex, endIndex);
+      
+      console.log(`[SUMMARIZE-ALL] Processing batch ${Math.floor(startIndex / batchSize) + 1}: articles ${startIndex + 1}-${endIndex}`);
+      
+      // Truncate content for safety
+      const truncatedArticles = batchArticles.map(article => ({
+        ...article,
+        content: article.content?.substring(0, 2500) || ''
+      }));
+      
+      const batchResult = await summaryTools.summarizeArticle(truncatedArticles as any);
+      
+      if (batchResult.success && batchResult.data) {
+        allSummaries.push(...batchResult.data);
+      } else {
+        console.warn(`[SUMMARIZE-ALL] Batch ${Math.floor(startIndex / batchSize) + 1} failed:`, batchResult.error);
+      }
     }
     
-    // Truncate content for safety
-    const truncatedArticles = articlesToSummarize.map(article => ({
-      ...article,
-      content: article.content?.substring(0, 2500) || ''
-    }));
-    
-    const result = await summaryTools.summarizeArticle(truncatedArticles as any);
-    
-    // Store summaries in state for collateSummary (append to existing)
-    if (result.success && result.data) {
-      // Read fresh state to avoid race condition
-      const currentState = toolStateManager.getState(sessionId);
+    // Store all summaries in state for collateSummary
+    if (allSummaries.length > 0) {
       toolStateManager.updateState(sessionId, {
-        summaries: [...(currentState.summaries || []), ...result.data]
+        summaries: allSummaries
       });
     }
     
     return JSON.stringify({
-      ...result,
-      batchInfo: {
-        processedCount: articlesToSummarize.length,
-        startIndex,
-        endIndex,
+      success: true,
+      data: allSummaries,
+      metadata: {
         totalArticles: storedArticles.length,
-        remainingArticles: Math.max(0, storedArticles.length - endIndex),
-        allArticlesProcessed: endIndex >= storedArticles.length  // NEW: Clear completion signal
+        summariesGenerated: allSummaries.length,
+        batchesProcessed: Math.ceil(storedArticles.length / batchSize)
       }
     });
   }
