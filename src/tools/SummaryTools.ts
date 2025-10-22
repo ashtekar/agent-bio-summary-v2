@@ -119,12 +119,12 @@ export class SummaryTools {
     try {
       console.log(`Collating ${summaries.length} summaries into final format`);
       
-      // Filter out low-quality summaries
-      const qualityThreshold = 0.5;
-      const qualitySummaries = summaries.filter(s => s.qualityScore >= qualityThreshold);
+      // Note: Quality evaluation now happens asynchronously in LangSmith UI
+      // We collate all summaries since quality scores are not available synchronously
+      const qualitySummaries = summaries;
       
       if (qualitySummaries.length === 0) {
-        throw new Error('No high-quality summaries available for collation');
+        throw new Error('No summaries available for collation');
       }
 
       // Generate collated summary using Langchain
