@@ -20,12 +20,13 @@ export async function POST(request: NextRequest) {
     try {
       const supabaseSettings = await settingsService.getAllSettings();
       context = { ...supabaseSettings, ...body };
-      console.log('Using settings from Supabase:', {
+      console.log('🔍 [API-ROUTE] Using settings from Supabase:', {
         model: context.systemSettings.llmModel,
         temperature: context.systemSettings.llmTemperature,
         maxTokens: context.systemSettings.llmMaxTokens,
         agentType: useLangChainAgent ? 'LangChain' : 'OpenAI SDK'
       });
+      console.log('🔍 [API-ROUTE] Context recipients:', JSON.stringify(context.recipients, null, 2));
     } catch (error) {
       console.warn('Failed to load settings from Supabase, using defaults:', error);
       

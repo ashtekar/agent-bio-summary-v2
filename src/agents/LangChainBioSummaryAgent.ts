@@ -76,7 +76,7 @@ export class LangChainBioSummaryAgent {
       maxIterations: 10,
       returnIntermediateSteps: true,
       handleParsingErrors: true,
-      verbose: true
+      verbose: false  // Reduce logging noise
     });
 
     console.log(`✅ LangChain AgentExecutor initialized with ${allLangChainTools.length} tools`);
@@ -127,6 +127,9 @@ System Settings: ${JSON.stringify(this.context.systemSettings)}
 Recipients: ${JSON.stringify(this.context.recipients)}
 
 Use the available tools in the proper sequence to complete the task.`;
+
+      console.log('🔍 [LANGCHAIN-AGENT] Context being passed to LLM:');
+      console.log('🔍 [LANGCHAIN-AGENT] Recipients in context:', JSON.stringify(this.context.recipients, null, 2));
       
       const result = await this.executor.invoke(
         { input: contextInput },

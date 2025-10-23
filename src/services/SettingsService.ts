@@ -154,7 +154,10 @@ export class SettingsService {
         throw new Error(`Failed to fetch email recipients: ${error.message}`);
       }
 
-      return (data || []).map(recipient => ({
+      console.log('🔍 [SETTINGS-SERVICE] Raw Supabase recipients data:', JSON.stringify(data, null, 2));
+      console.log('🔍 [SETTINGS-SERVICE] Number of recipients found:', data?.length || 0);
+
+      const mappedRecipients = (data || []).map(recipient => ({
         email: recipient.email,
         name: recipient.name,
         preferences: {
@@ -162,6 +165,9 @@ export class SettingsService {
           format: recipient.preferences?.format || 'html'
         }
       }));
+
+      console.log('🔍 [SETTINGS-SERVICE] Mapped recipients:', JSON.stringify(mappedRecipients, null, 2));
+      return mappedRecipients;
 
     } catch (error) {
       console.error('Error fetching email recipients:', error);
@@ -192,6 +198,8 @@ export class SettingsService {
         this.getSystemSettings(),
         this.getEmailRecipients()
       ]);
+
+      console.log('🔍 [SETTINGS-SERVICE] getAllSettings recipients:', JSON.stringify(recipients, null, 2));
 
       return {
         searchSettings,
