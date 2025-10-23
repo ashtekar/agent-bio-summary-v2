@@ -28,6 +28,27 @@ export class SearchTools {
   }
 
   /**
+   * Sanitize Unicode characters that can cause database issues
+   */
+  private sanitizeUnicode(text: string): string {
+    if (!text) return text;
+    
+    try {
+      // Remove or replace problematic Unicode characters
+      return text
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '') // Remove control characters
+        .replace(/[\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ') // Replace various spaces with regular space
+        .replace(/\uFEFF/g, '') // Remove BOM
+        .replace(/[\uFFFD]/g, '?') // Replace replacement characters with question mark
+        .trim();
+    } catch (error) {
+      console.warn('Unicode sanitization failed:', error);
+      // Fallback: return a safe version
+      return text.replace(/[^\x20-\x7E]/g, '?');
+    }
+  }
+
+  /**
    * Make HTTP request with exponential backoff retry for rate limiting
    */
   private async makeRequestWithRetry(url: string, attempt: number = 1): Promise<Response> {
@@ -486,14 +507,14 @@ export class SearchTools {
       } else if (relevantNewArticles.length === 0) {
         console.log('[PHASE 4] No relevant articles to store');
       } else {
-        // Prepare articles for database insertion
+        // Prepare articles for database insertion with Unicode sanitization
         const articlesToStore = relevantNewArticles.map(article => ({
           id: article.id,
-          title: article.title || 'Untitled Article',
+          title: this.sanitizeUnicode(article.title || 'Untitled Article'),
           url: article.url || 'https://unknown-source.com',
-          content: article.content,
+          content: this.sanitizeUnicode(article.content),
           published_date: article.publishedDate,
-          source: article.source || 'unknown',
+          source: this.sanitizeUnicode(article.source || 'unknown'),
           relevancy_score: article.relevancyScore || 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()

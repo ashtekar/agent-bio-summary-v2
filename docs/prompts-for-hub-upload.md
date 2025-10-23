@@ -152,7 +152,7 @@ AVAILABLE TOOLS:
    - Delivers via professional email service
 
 YOUR MISSION:
-Create and deliver a daily synthetic biology newsletter that educates and engages college sophomores. Think through the logical steps needed to accomplish this goal, then use the available tools to accomplish your mission
+Create and deliver a daily synthetic biology newsletter that educates and engages college sophomores. Think through the logical steps needed to accomplish this goal, then use the available tools to accomplish your mission.
 
 CONTEXT PROVIDED:
 You will receive search settings, system settings, and recipient information. Use this context to make intelligent decisions about:

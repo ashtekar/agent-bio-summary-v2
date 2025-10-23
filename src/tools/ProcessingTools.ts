@@ -18,6 +18,27 @@ export class ProcessingTools {
   }
 
   /**
+   * Sanitize Unicode characters that can cause database issues
+   */
+  private sanitizeUnicode(text: string): string {
+    if (!text) return text;
+    
+    try {
+      // Remove or replace problematic Unicode characters
+      return text
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '') // Remove control characters
+        .replace(/[\u2000-\u200F\u2028-\u202F\u205F-\u206F]/g, ' ') // Replace various spaces with regular space
+        .replace(/\uFEFF/g, '') // Remove BOM
+        .replace(/[\uFFFD]/g, '?') // Replace replacement characters with question mark
+        .trim();
+    } catch (error) {
+      console.warn('Unicode sanitization failed:', error);
+      // Fallback: return a safe version
+      return text.replace(/[^\x20-\x7E]/g, '?');
+    }
+  }
+
+  /**
    * Score articles for relevancy using user settings
    */
   async scoreRelevancy(articles: Article[], relevancyThreshold: number = 0.2, userKeywords: string[] = []): Promise<ToolResult> {
@@ -81,14 +102,14 @@ export class ProcessingTools {
           throw new Error('Supabase client not initialized');
         }
 
-        // Prepare articles for database insertion
+        // Prepare articles for database insertion with Unicode sanitization
         const articlesToStore = articles.map(article => ({
           id: article.id,
-          title: article.title || 'Untitled Article', // Ensure title is never null
+          title: this.sanitizeUnicode(article.title || 'Untitled Article'), // Ensure title is never null
           url: article.url || 'https://unknown-source.com', // Ensure url is never null
-          content: article.content,
+          content: this.sanitizeUnicode(article.content),
           published_date: article.publishedDate,
-          source: article.source || 'unknown', // Ensure source is never null
+          source: this.sanitizeUnicode(article.source || 'unknown'), // Ensure source is never null
           relevancy_score: article.relevancyScore || 0, // Ensure score is never null
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
