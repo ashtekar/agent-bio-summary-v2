@@ -111,7 +111,7 @@ export class LangChainBioSummaryAgent {
         throw new Error('Failed to initialize AgentExecutor');
       }
 
-      // Execute agent with LangChain (no human input needed - system prompt contains all instructions)
+      // Execute agent with LangChain (pass context data to the LLM)
       console.log('🤖 Invoking LangChain AgentExecutor...');
       console.log('Agent config:', {
         threadId: this.context.threadId,
@@ -119,8 +119,17 @@ export class LangChainBioSummaryAgent {
         tools: allLangChainTools.map(t => t.name)
       });
       
+      // Pass context data to the LLM so it has access to recipients, search settings, etc.
+      const contextInput = `Generate a daily synthetic biology summary. Here's the context:
+
+Search Settings: ${JSON.stringify(this.context.searchSettings)}
+System Settings: ${JSON.stringify(this.context.systemSettings)}
+Recipients: ${JSON.stringify(this.context.recipients)}
+
+Use the available tools in the proper sequence to complete the task.`;
+      
       const result = await this.executor.invoke(
-        { input: '' },
+        { input: contextInput },
         {
           configurable: {
             thread_id: this.context.threadId,
