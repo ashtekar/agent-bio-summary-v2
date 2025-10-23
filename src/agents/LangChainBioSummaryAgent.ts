@@ -112,12 +112,16 @@ export class LangChainBioSummaryAgent {
       }
 
       // Execute agent with LangChain (pass context data to the LLM)
-      console.log('🤖 Invoking LangChain AgentExecutor...');
+      console.log('🤖 Invoking LangChain AgentExecutor with GPT-5...');
       console.log('Agent config:', {
         threadId: this.context.threadId,
         maxIterations: this.executor.maxIterations,
-        tools: allLangChainTools.map(t => t.name)
+        tools: allLangChainTools.map(t => t.name),
+        model: 'gpt-5'
       });
+      
+      // Add GPT-5 output monitoring
+      console.log('[GPT-5] Starting execution with enhanced monitoring for output issues');
       
       // Pass context data to the LLM so it has access to recipients, search settings, etc.
       const contextInput = `Generate a daily synthetic biology summary. Here's the context:
@@ -162,6 +166,27 @@ Use the available tools in the proper sequence to complete the task.`;
           ]
         }
       );
+
+      // Enhanced GPT-5 output validation
+      console.log('[GPT-5] Agent execution completed, validating output...');
+      console.log('[GPT-5] Result type:', typeof result);
+      console.log('[GPT-5] Result keys:', Object.keys(result || {}));
+      
+      if (!result || (typeof result === 'object' && Object.keys(result).length === 0)) {
+        console.error('[GPT-5] Empty or null result detected - GPT-5 may have output issues');
+        throw new Error('GPT-5 returned empty result - potential output issue');
+      }
+      
+      if (result.output && typeof result.output === 'string' && result.output.trim().length === 0) {
+        console.error('[GPT-5] Empty output string detected');
+        throw new Error('GPT-5 returned empty output string');
+      }
+      
+      console.log('[GPT-5] Output validation passed:', {
+        hasOutput: !!result.output,
+        outputLength: result.output?.length || 0,
+        hasIntermediateSteps: !!(result.intermediateSteps && result.intermediateSteps.length > 0)
+      });
 
       // Check if tools were called
       if (!result.intermediateSteps || result.intermediateSteps.length === 0) {

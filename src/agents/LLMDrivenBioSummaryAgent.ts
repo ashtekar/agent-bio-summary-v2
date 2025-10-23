@@ -174,8 +174,46 @@ export class LLMDrivenBioSummaryAgent {
 
         const message = response.choices[0]?.message;
         if (!message) {
+          console.error('[GPT-5] No response from LLM - potential GPT-5 output issue');
           throw new Error('No response from LLM');
         }
+
+        // Enhanced GPT-5 output validation
+        if (!message.content && (!message.tool_calls || message.tool_calls.length === 0)) {
+          console.error('[GPT-5] Empty response detected - GPT-5 may have output issues');
+          console.error('[GPT-5] Response details:', JSON.stringify(message, null, 2));
+          
+          // Retry with fallback model if GPT-5 fails
+          if (this.currentIteration === 1) {
+            console.warn('[GPT-5] Attempting fallback to gpt-4o-mini due to empty GPT-5 response');
+            const fallbackResponse = await this.openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              messages,
+              tools: getAllToolDefinitions().map(tool => ({
+                type: 'function' as const,
+                function: tool
+              })),
+              tool_choice: 'auto',
+              temperature: 0.3,
+              max_tokens: 1000
+            });
+            
+            const fallbackMessage = fallbackResponse.choices[0]?.message;
+            if (fallbackMessage && (fallbackMessage.content || fallbackMessage.tool_calls)) {
+              console.log('[GPT-5] Fallback to gpt-4o-mini successful');
+              messages.push(fallbackMessage);
+              continue;
+            }
+          }
+          
+          throw new Error('GPT-5 returned empty response and fallback failed');
+        }
+
+        console.log('[GPT-5] Response received:', {
+          hasContent: !!message.content,
+          hasToolCalls: !!(message.tool_calls && message.tool_calls.length > 0),
+          toolCallCount: message.tool_calls?.length || 0
+        });
 
         // Add LLM response to messages
         messages.push(message);
