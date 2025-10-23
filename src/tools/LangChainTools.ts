@@ -384,11 +384,15 @@ export const sendEmailTool = new DynamicStructuredTool({
     }).describe('Execution metadata for tracking')
   }),
   func: async (input) => {
+    console.log('🔍 [SEND-EMAIL-TOOL] Input recipients received:', JSON.stringify(input.recipients, null, 2));
+    
     const recipients: EmailRecipient[] = input.recipients.map(r => ({
       email: r.email,
       name: r.name,
       preferences: r.preferences || { frequency: 'daily', format: 'html' }
     }));
+    
+    console.log('🔍 [SEND-EMAIL-TOOL] Mapped recipients:', JSON.stringify(recipients, null, 2));
     
     const result = await emailTools.sendEmail({
       summary: input.summary,
