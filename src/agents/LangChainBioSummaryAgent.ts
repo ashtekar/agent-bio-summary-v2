@@ -111,12 +111,8 @@ export class LangChainBioSummaryAgent {
         throw new Error('Failed to initialize AgentExecutor');
       }
 
-      // Build agent input
-      const agentInput = this.buildAgentInput();
-
-      // Execute agent with LangChain
+      // Execute agent with LangChain (no human input needed - system prompt contains all instructions)
       console.log('🤖 Invoking LangChain AgentExecutor...');
-      console.log('Agent input:', agentInput);
       console.log('Agent config:', {
         threadId: this.context.threadId,
         maxIterations: this.executor.maxIterations,
@@ -124,7 +120,7 @@ export class LangChainBioSummaryAgent {
       });
       
       const result = await this.executor.invoke(
-        { input: agentInput },
+        { input: '' },
         {
           configurable: {
             thread_id: this.context.threadId,
@@ -202,40 +198,6 @@ export class LangChainBioSummaryAgent {
     }
   }
 
-  /**
-   * Build agent input from context
-   */
-  private buildAgentInput(): string {
-    const { searchSettings, recipients, systemSettings } = this.context;
-    const relevancyThreshold = systemSettings.relevancyThreshold ?? 0.2;
-    
-    // Format recipients for the LLM
-    const recipientsInfo = recipients.map(r => `  - ${r.name} <${r.email}>`).join('\n');
-    
-    return `Generate a daily synthetic biology summary with the following context:
-
-Search Settings:
-- Query: ${searchSettings.query}
-- Max Results: ${searchSettings.maxResults}
-- Date Range: ${searchSettings.dateRange}
-- Sources: ${searchSettings.sources.join(', ')}
-- Relevancy Threshold: ${relevancyThreshold} (only articles scoring >= ${relevancyThreshold} should be processed)
-
-Email Recipients (${recipients.length}):
-${recipientsInfo}
-
-Task:
-1. Search for articles using searchWeb
-2. Use extractScoreAndStoreArticles with relevancyThreshold=${relevancyThreshold} - NOTE: searchResults are automatically read from state, just pass the threshold
-3. Summarize articles using summarizeArticle (call ONCE - it processes all articles automatically)
-4. Collate summaries into newsletter using collateSummary
-5. Send email to ALL recipients listed above using sendEmail
-
-IMPORTANT: 
-- After searchWeb, call extractScoreAndStoreArticles with ONLY relevancyThreshold (searchResults are read from state automatically)
-- Include ALL ${recipients.length} recipient(s) in the sendEmail call
-- Only summarize articles with relevancyScore >= ${relevancyThreshold}`;
-  }
 
   /**
    * Get system prompt template from LangSmith Hub
@@ -253,7 +215,6 @@ IMPORTANT:
     // If it's a simple PromptTemplate, we need to convert it
     return ChatPromptTemplate.fromMessages([
       ['system', orchestrationPrompt.template],
-      ['human', '{input}'],
       new MessagesPlaceholder({ variableName: 'agent_scratchpad' })
     ]);
   }
