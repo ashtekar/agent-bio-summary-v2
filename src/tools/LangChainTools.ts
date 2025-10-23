@@ -17,7 +17,7 @@ import { toolStateManager } from './ToolState';
 const searchTools = new SearchTools();
 const processingTools = new ProcessingTools();
 const summaryTools = new SummaryTools({
-  modelName: 'gpt-4o-mini',  // Default for LangChain agent path
+  modelName: 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1',  // Fine-tuned model for individual summaries
   temperature: 0.3,
   maxTokens: 500
 });
