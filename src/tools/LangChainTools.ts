@@ -418,7 +418,11 @@ export const sendEmailTool = new DynamicStructuredTool({
     const result = await emailTools.sendEmail({
       summary: input.summary,
       recipients,
-      metadata: input.metadata || { sessionId }
+      metadata: {
+        sessionId,
+        articlesCount: input.metadata?.articlesCount ?? 0,
+        executionTime: input.metadata?.executionTime ?? 0
+      }
     });
     return JSON.stringify(result);
   }
