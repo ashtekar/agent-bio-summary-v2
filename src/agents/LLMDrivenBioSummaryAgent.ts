@@ -161,7 +161,7 @@ export class LLMDrivenBioSummaryAgent {
 
       try {
         const response = await this.openai.chat.completions.create({
-          model: 'gpt-4o-mini',  // Hard-coded for cost-effective orchestration
+          model: 'gpt-5',  // GPT-5 for superior instruction following and context adherence
           messages,
           tools: getAllToolDefinitions().map(tool => ({
             type: 'function' as const,

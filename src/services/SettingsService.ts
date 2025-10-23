@@ -367,6 +367,27 @@ export class SettingsService {
         costPer1kTokens: 0.005
       },
       {
+        id: 'gpt-5',
+        name: 'GPT-5',
+        description: 'Most advanced model with enhanced reasoning and instruction following',
+        maxTokens: 128000,
+        costPer1kTokens: 0.00125
+      },
+      {
+        id: 'gpt-5-mini',
+        name: 'GPT-5 Mini',
+        description: 'Cost-effective with improved instruction following',
+        maxTokens: 128000,
+        costPer1kTokens: 0.00005
+      },
+      {
+        id: 'gpt-5-nano',
+        name: 'GPT-5 Nano',
+        description: 'Balanced performance and cost',
+        maxTokens: 128000,
+        costPer1kTokens: 0.00025
+      },
+      {
         id: 'gpt-4o-mini',
         name: 'GPT-4o Mini',
         description: 'Fast and cost-effective for most tasks',
