@@ -48,7 +48,7 @@ export class LangChainBioSummaryAgent {
     this.llm = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: 'gpt-4o-mini',  // Hard-coded for cost-effective orchestration
-      temperature: 0.3,
+      temperature: 0.1,  // Lower temperature for more deterministic behavior
       maxTokens: 4000, // Tool calls need more tokens
       streaming: false
     });
