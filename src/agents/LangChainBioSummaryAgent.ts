@@ -227,7 +227,7 @@ ${recipientsInfo}
 Task:
 1. Search for articles using searchWeb
 2. Use extractScoreAndStoreArticles with relevancyThreshold=${relevancyThreshold} - NOTE: searchResults are automatically read from state, just pass the threshold
-3. Summarize articles (MAX 2 per call) using summarizeArticle - ONLY summarize articles that passed the relevancy threshold
+3. Summarize articles using summarizeArticle (call ONCE - it processes all articles automatically)
 4. Collate summaries into newsletter using collateSummary
 5. Send email to ALL recipients listed above using sendEmail
 
