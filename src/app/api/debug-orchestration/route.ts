@@ -17,20 +17,26 @@ export async function GET() {
       console.log('✅ Orchestration prompt loaded from Hub');
       console.log('Prompt content preview:');
       console.log('---');
-      console.log(orchestrationPrompt.template.substring(0, 500) + '...');
+      
+      // Safely get template content
+      const templateContent = typeof orchestrationPrompt.template === 'string' 
+        ? orchestrationPrompt.template 
+        : JSON.stringify(orchestrationPrompt.template);
+      
+      console.log(templateContent.substring(0, 500) + '...');
       console.log('---');
       
       // Check for the problematic instruction
-      const hasOldInstruction = orchestrationPrompt.template.includes('MAX 2 articles per call');
-      const hasNewInstruction = orchestrationPrompt.template.includes('call this tool ONCE');
+      const hasOldInstruction = templateContent.includes('MAX 2 articles per call');
+      const hasNewInstruction = templateContent.includes('call this tool ONCE');
       
       return NextResponse.json({
         success: true,
         promptLoaded: true,
-        promptLength: orchestrationPrompt.template.length,
+        promptLength: templateContent.length,
         hasOldInstruction: hasOldInstruction,
         hasNewInstruction: hasNewInstruction,
-        contentPreview: orchestrationPrompt.template.substring(0, 300),
+        contentPreview: templateContent.substring(0, 300),
         message: hasOldInstruction 
           ? '❌ Still contains old instruction: "MAX 2 articles per call"'
           : hasNewInstruction
