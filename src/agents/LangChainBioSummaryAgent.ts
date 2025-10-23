@@ -18,9 +18,13 @@ export class LangChainBioSummaryAgent {
   private parentRunId: string | null = null;
 
   constructor(initialContext: Partial<AgentContext>) {
-    // Force disable LangChain console logging
-    process.env.LANGCHAIN_VERBOSE = 'false';
-    process.env.LANGCHAIN_DEBUG = 'false';
+    // Respect LANGCHAIN_VERBOSE from environment, default to false
+    if (process.env.LANGCHAIN_VERBOSE !== 'true') {
+      process.env.LANGCHAIN_VERBOSE = 'false';
+    }
+    if (process.env.LANGCHAIN_DEBUG !== 'true') {
+      process.env.LANGCHAIN_DEBUG = 'false';
+    }
     // LANGCHAIN_TRACING_V2 controlled via Vercel environment variables
     
     // Initialize context
@@ -91,6 +95,17 @@ export class LangChainBioSummaryAgent {
       
       // Set session ID for tools to access shared state
       setToolSessionId(this.context.sessionId);
+      
+      // Store context in toolState so tools can access recipients
+      toolStateManager.updateState(this.context.sessionId, {
+        context: {
+          recipients: this.context.recipients,
+          searchSettings: this.context.searchSettings,
+          systemSettings: this.context.systemSettings
+        }
+      });
+      console.log('[AGENT] Stored context in toolState for session:', this.context.sessionId);
+      console.log('[AGENT] Context recipients:', JSON.stringify(this.context.recipients, null, 2));
       
       // Create parent trace for hierarchical tracking
       this.parentRunId = await langchainIntegration.createTrace({

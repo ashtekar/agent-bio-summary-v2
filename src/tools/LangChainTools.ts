@@ -366,7 +366,7 @@ export const collateSummaryTool = new DynamicStructuredTool({
  */
 export const sendEmailTool = new DynamicStructuredTool({
   name: 'sendEmail',
-  description: 'Send the final collated summary via email to recipients using Resend.io. MUST include all recipients from context.',
+  description: 'Send the final collated summary via email to recipients using Resend.io. Recipients are auto-injected from context if not provided.',
   schema: z.object({
     summary: z.string().describe('The collated HTML summary to send'),
     recipients: z.array(z.object({
@@ -376,28 +376,49 @@ export const sendEmailTool = new DynamicStructuredTool({
         frequency: z.string(),
         format: z.string()
       }).optional()
-    })).describe('Array of email recipients'),
+    })).optional().describe('Array of email recipients (optional - will use context recipients if not provided)'),
     metadata: z.object({
       sessionId: z.string(),
-      articlesCount: z.number(),
-      executionTime: z.number()
-    }).describe('Execution metadata for tracking')
+      articlesCount: z.number().optional(),
+      executionTime: z.number().optional()
+    }).optional().describe('Execution metadata for tracking')
   }),
   func: async (input) => {
-    console.log('🔍 [SEND-EMAIL-TOOL] Input recipients received:', JSON.stringify(input.recipients, null, 2));
+    const sessionId = getToolSessionId();
+    console.log('🔍 [SEND-EMAIL-TOOL] Session ID:', sessionId);
+    console.log('🔍 [SEND-EMAIL-TOOL] Input recipients received:', JSON.stringify(input.recipients || [], null, 2));
     
-    const recipients: EmailRecipient[] = input.recipients.map(r => ({
-      email: r.email,
-      name: r.name,
-      preferences: r.preferences || { frequency: 'daily', format: 'html' }
-    }));
+    // AUTO-INJECT RECIPIENTS FROM CONTEXT IF NOT PROVIDED
+    let recipients: EmailRecipient[] = [];
     
-    console.log('🔍 [SEND-EMAIL-TOOL] Mapped recipients:', JSON.stringify(recipients, null, 2));
+    if (input.recipients && input.recipients.length > 0) {
+      recipients = input.recipients.map(r => ({
+        email: r.email,
+        name: r.name,
+        preferences: r.preferences || { frequency: 'daily', format: 'html' }
+      }));
+      console.log('🔍 [SEND-EMAIL-TOOL] Using recipients from input:', recipients.length);
+    } else {
+      // Get recipients from stored context
+      const state = toolStateManager.getState(sessionId);
+      console.log('🔍 [SEND-EMAIL-TOOL] ToolState context:', JSON.stringify(state.context, null, 2));
+      
+      if (state.context?.recipients) {
+        recipients = state.context.recipients;
+        console.log('✅ [SEND-EMAIL-TOOL] Auto-injected recipients from context:', recipients.length);
+        console.log('✅ [SEND-EMAIL-TOOL] Recipients:', JSON.stringify(recipients, null, 2));
+      } else {
+        console.error('❌ [SEND-EMAIL-TOOL] No recipients in context!');
+        console.error('❌ [SEND-EMAIL-TOOL] Available state keys:', Object.keys(state));
+      }
+    }
+    
+    console.log('🔍 [SEND-EMAIL-TOOL] Final recipients count:', recipients.length);
     
     const result = await emailTools.sendEmail({
       summary: input.summary,
       recipients,
-      metadata: input.metadata
+      metadata: input.metadata || { sessionId }
     });
     return JSON.stringify(result);
   }

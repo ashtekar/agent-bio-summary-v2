@@ -15,6 +15,7 @@ interface ToolState {
   collatedSummary?: any;
   finalSummary?: string;
   metadata?: Record<string, any>;
+  context?: any;  // Stores agent context including recipients, searchSettings, systemSettings
 }
 
 class ToolStateManager {
