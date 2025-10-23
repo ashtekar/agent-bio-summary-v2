@@ -241,47 +241,18 @@ IMPORTANT:
    * Get system prompt template from LangSmith Hub
    */
   private async getSystemPromptTemplate(): Promise<ChatPromptTemplate> {
-    try {
-      // Try to load orchestration prompt from Hub
-      const orchestrationPrompt = await langchainIntegration.getPrompt('orchestration');
-      
-      if (orchestrationPrompt) {
-        console.log('✅ Using orchestration prompt from Hub');
-        // The Hub prompt should already be a ChatPromptTemplate with proper structure
-        // If it's a simple PromptTemplate, we need to convert it
-        return ChatPromptTemplate.fromMessages([
-          ['system', orchestrationPrompt.template],
-          ['human', '{input}'],
-          new MessagesPlaceholder({ variableName: 'agent_scratchpad' })
-        ]);
-      }
-    } catch (error) {
-      console.warn('Failed to load orchestration prompt from Hub, using hardcoded fallback:', error);
+    // Load orchestration prompt from Hub - no fallback
+    const orchestrationPrompt = await langchainIntegration.getPrompt('orchestration');
+    
+    if (!orchestrationPrompt) {
+      throw new Error('Failed to load orchestration prompt from LangSmith Hub. Check your Hub configuration and environment variables.');
     }
     
-    // Fallback to hardcoded prompt
-    console.log('Using hardcoded orchestration prompt (fallback)');
+    console.log('✅ Using orchestration prompt from Hub');
+    // The Hub prompt should already be a ChatPromptTemplate with proper structure
+    // If it's a simple PromptTemplate, we need to convert it
     return ChatPromptTemplate.fromMessages([
-      ['system', `You are an expert AI agent for generating daily synthetic biology summaries.
-
-Your task is to:
-1. Search for recent synthetic biology articles
-2. Extract, score, and store relevant articles (use extractScoreAndStoreArticles for efficiency)
-3. Generate high-quality summaries (minimum 100 words each, MAX 2 articles per call)
-4. Collate summaries into a cohesive HTML email newsletter
-5. Send the final summary to specified email recipients
-
-TOOL OPTIMIZATION:
-- PREFERRED: Use 'extractScoreAndStoreArticles' after searchWeb - automatically reads search results from state, just pass relevancyThreshold
-- searchWeb stores results in state automatically - DO NOT try to pass searchResults to the next tool
-- LEGACY: Individual tools (extractArticles, scoreRelevancy, storeArticles) available for debugging
-
-Key requirements:
-- Focus on synthetic biology, biotechnology, and related fields
-- Ensure summaries are appropriate for college sophomore level
-- Generate HTML-formatted email content
-- Include article links and citations
-- Maintain professional tone and accuracy`],
+      ['system', orchestrationPrompt.template],
       ['human', '{input}'],
       new MessagesPlaceholder({ variableName: 'agent_scratchpad' })
     ]);
