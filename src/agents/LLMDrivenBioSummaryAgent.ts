@@ -168,7 +168,7 @@ export class LLMDrivenBioSummaryAgent {
             function: tool
           })),
           tool_choice: 'auto',
-          temperature: 0.3,
+          temperature: 1,  // GPT-5 only supports default temperature of 1
           max_tokens: 1000
         });
 
@@ -194,7 +194,7 @@ export class LLMDrivenBioSummaryAgent {
                 function: tool
               })),
               tool_choice: 'auto',
-              temperature: 0.3,
+              temperature: 0.3,  // gpt-4o-mini supports custom temperature
               max_tokens: 1000
             });
             

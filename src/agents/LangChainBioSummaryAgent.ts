@@ -48,7 +48,7 @@ export class LangChainBioSummaryAgent {
     this.llm = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: 'gpt-5',  // GPT-5 for superior instruction following and context adherence
-      temperature: 0.1,  // Lower temperature for more deterministic behavior
+      temperature: 1,  // GPT-5 only supports default temperature of 1
       maxTokens: 4000, // Tool calls need more tokens
       streaming: false
     });
