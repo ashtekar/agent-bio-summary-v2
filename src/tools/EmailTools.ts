@@ -40,6 +40,27 @@ export class EmailTools {
           throw new Error('No recipients specified');
         }
 
+        // CRITICAL: Validate recipients - reject test emails
+        const testEmailPatterns = [
+          /student\d+@example\.com/i,
+          /recipient\d+@example\.com/i,
+          /test\d*@example\.com/i,
+          /user\d+@example\.com/i,
+          /demo\d*@example\.com/i
+        ];
+
+        const invalidRecipients = params.recipients.filter(recipient => 
+          testEmailPatterns.some(pattern => pattern.test(recipient.email))
+        );
+
+        if (invalidRecipients.length > 0) {
+          const errorMessage = `CRITICAL ERROR: Agent is trying to send emails to test recipients: ${invalidRecipients.map(r => r.email).join(', ')}. This indicates the agent is not following the context properly. Please check the orchestration prompt and ensure the agent uses the exact recipients from the context.`;
+          console.error(errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        console.log(`✅ Valid recipients: ${params.recipients.map(r => r.email).join(', ')}`);
+
         const emailHtml = this.generateEmailHtml(params.summary, params.metadata);
         const emailSubject = this.generateEmailSubject(params.metadata);
         
