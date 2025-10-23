@@ -126,6 +126,8 @@ Search Settings: ${JSON.stringify(this.context.searchSettings)}
 System Settings: ${JSON.stringify(this.context.systemSettings)}
 Recipients: ${JSON.stringify(this.context.recipients)}
 
+CRITICAL: You MUST use the EXACT recipients provided above. Do NOT generate or use any other recipients. The recipients in the context are the ONLY recipients you should use.
+
 Use the available tools in the proper sequence to complete the task.`;
 
       console.log('🔍 [LANGCHAIN-AGENT] Context being passed to LLM:');
