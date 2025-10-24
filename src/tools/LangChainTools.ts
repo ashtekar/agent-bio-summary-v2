@@ -95,24 +95,18 @@ export const searchWebTool = new DynamicStructuredTool({
  */
 export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
   name: 'extractScoreAndStoreArticles',
-  description: 'OPTIMIZED COMBINED TOOL: Extract article content, score for relevancy, and store in database. Automatically reads search results from state (populated by searchWeb). Combines three operations (extract, score, store) into one efficient call. IMPORTANT: You MUST call searchWeb first to populate the state with search results before calling this tool.',
-  schema: z.object({
-    relevancyThreshold: z.number().default(0.2).describe('Minimum relevancy score threshold (0-1 scale). Default: 0.2')
-  }),
-  func: async (input) => {
+  description: 'Extract article content, score for relevancy, and store in database. Automatically reads search results and user preferences from tool state. No parameters needed. Call searchWeb first to populate search results.',
+  schema: z.object({}),  // No parameters - tool is self-sufficient
+  func: async () => {
     const sessionId = getToolSessionId();
     console.log(`[EXTRACT-SCORE-STORE] Session: ${sessionId}`);
     
     // Read search results from state
     const state = toolStateManager.getState(sessionId);
     
-    // Prefer context value over agent-provided value
-    const contextThreshold = state.context?.systemSettings?.relevancyThreshold;
-    const relevancyThreshold = contextThreshold ?? input.relevancyThreshold ?? 0.2;
-
-    if (contextThreshold && input.relevancyThreshold !== contextThreshold) {
-      console.log(`[EXTRACT-SCORE-STORE] Using context threshold ${contextThreshold} instead of agent-provided ${input.relevancyThreshold}`);
-    }
+    // Tool pulls relevancy threshold from context (user preferences)
+    const relevancyThreshold = state.context?.systemSettings?.relevancyThreshold ?? 0.2;
+    console.log(`[EXTRACT-SCORE-STORE] Using relevancy threshold from context: ${relevancyThreshold}`);
     
     if (!state.searchResults || state.searchResults.length === 0) {
       console.log(`[EXTRACT-SCORE-STORE] No results in session ${sessionId}, searching all sessions...`);
@@ -130,9 +124,13 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
           // Update the current session to point to the one with data
           setToolSessionId(sessionWithData);
           
+          // Use threshold from this session's context
+          const sessionThreshold = sessionState.context?.systemSettings?.relevancyThreshold ?? 0.2;
+          console.log(`[EXTRACT-SCORE-STORE] Using relevancy threshold from found session: ${sessionThreshold}`);
+          
           const result = await searchTools.extractScoreAndStoreArticles(
             sessionState.searchResults,
-            relevancyThreshold,
+            sessionThreshold,
             {
               query: sessionState.metadata?.query || '',
               maxResults: sessionState.searchResults.length,
