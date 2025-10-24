@@ -134,7 +134,7 @@ AVAILABLE TOOLS:
    - Automatically stores results in shared state for other tools
 
 2. extractScoreAndStoreArticles: Extract full article content, score for relevancy, and store relevant articles
-   - Parameters: relevancyThreshold (optional, defaults to 0.2)
+   - Parameters: relevancyThreshold
    - Reads search results from shared state automatically
    - Only stores articles that meet the relevancy threshold
 

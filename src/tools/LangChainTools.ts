@@ -106,6 +106,14 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     // Read search results from state
     const state = toolStateManager.getState(sessionId);
     
+    // Prefer context value over agent-provided value
+    const contextThreshold = state.context?.systemSettings?.relevancyThreshold;
+    const relevancyThreshold = contextThreshold ?? input.relevancyThreshold ?? 0.2;
+
+    if (contextThreshold && input.relevancyThreshold !== contextThreshold) {
+      console.log(`[EXTRACT-SCORE-STORE] Using context threshold ${contextThreshold} instead of agent-provided ${input.relevancyThreshold}`);
+    }
+    
     if (!state.searchResults || state.searchResults.length === 0) {
       console.log(`[EXTRACT-SCORE-STORE] No results in session ${sessionId}, searching all sessions...`);
       
@@ -124,7 +132,7 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
           
           const result = await searchTools.extractScoreAndStoreArticles(
             sessionState.searchResults,
-            input.relevancyThreshold,
+            relevancyThreshold,
             {
               query: sessionState.metadata?.query || '',
               maxResults: sessionState.searchResults.length,
@@ -155,7 +163,7 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     
     const result = await searchTools.extractScoreAndStoreArticles(
       state.searchResults,
-      input.relevancyThreshold,
+      relevancyThreshold,
       searchSettings
     );
     
