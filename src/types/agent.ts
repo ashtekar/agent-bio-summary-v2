@@ -40,6 +40,7 @@ export interface SystemSettings {
   llmTemperature: number;
   llmMaxTokens: number;
   relevancyThreshold?: number; // Optional threshold for article relevancy scoring (default: 0.2)
+  maxArticlesToSummarize?: number; // NEW: Limit number of articles to extract/store/summarize (default: 10)
 }
 
 export interface EmailRecipient {

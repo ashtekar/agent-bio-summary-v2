@@ -135,7 +135,7 @@ AVAILABLE TOOLS:
 
 2. extractScoreAndStoreArticles: Extract full article content, score for relevancy, and store relevant articles
    - No parameters needed - automatically uses search results and user preferences from tool state
-   - Only stores articles that meet the configured relevancy threshold
+   - Only stores the top 10 highest scoring articles that meet the configured relevancy threshold
 
 3. summarizeArticle: Generate comprehensive summaries of stored articles
    - No parameters needed - processes all stored articles automatically

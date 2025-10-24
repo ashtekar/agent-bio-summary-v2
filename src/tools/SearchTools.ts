@@ -401,7 +401,7 @@ export class SearchTools {
    * This optimized tool combines three operations into one to reduce LLM round-trips
    * Phase 2B optimization as per Design Spec Section 9
    */
-  async extractScoreAndStoreArticles(searchResults: any[], relevancyThreshold: number = 0.2, searchSettings?: SearchSettings): Promise<ToolResult> {
+  async extractScoreAndStoreArticles(searchResults: any[], relevancyThreshold: number = 0.2, searchSettings?: SearchSettings, maxArticles: number = 10): Promise<ToolResult> {
     return this.tracing.traceToolExecution(
       'extractScoreAndStoreArticles',
       async () => {
@@ -493,8 +493,11 @@ export class SearchTools {
       // Sort by relevancy score (highest first)
       relevantNewArticles.sort((a, b) => b.relevancyScore - a.relevancyScore);
 
+      // NEW: Limit to top N articles (default: 10)
+      const topArticles = relevantNewArticles.slice(0, maxArticles);
+
       const scoringTime = Date.now() - scoringStartTime;
-      console.log(`[PHASE 3] Scored ${scoredNewArticles.length} articles, ${relevantNewArticles.length} passed threshold in ${scoringTime}ms`);
+      console.log(`[PHASE 3] Scored ${scoredNewArticles.length} articles, ${relevantNewArticles.length} passed threshold, selected top ${topArticles.length} (limit: ${maxArticles}) in ${scoringTime}ms`);
 
       // ============================================================
       // PHASE 4: STORAGE (only new relevant articles)
@@ -504,11 +507,11 @@ export class SearchTools {
       
       if (!this.supabase) {
         console.warn('[PHASE 4] Supabase not initialized, skipping storage');
-      } else if (relevantNewArticles.length === 0) {
+      } else if (topArticles.length === 0) {
         console.log('[PHASE 4] No relevant articles to store');
       } else {
         // Prepare articles for database insertion with Unicode sanitization
-        const articlesToStore = relevantNewArticles.map(article => ({
+        const articlesToStore = topArticles.map(article => ({
           id: article.id,
           title: this.sanitizeUnicode(article.title || 'Untitled Article'),
           url: article.url || 'https://unknown-source.com',
@@ -551,14 +554,14 @@ export class SearchTools {
       console.log(`  • Total Time: ${totalTime}ms`);
       console.log(`  • Extraction: ${extractionTime}ms (${articles.length} articles)`);
       console.log(`  • Duplicate Check: ${duplicateCheckTime}ms (${articles.length - newArticles.length} duplicates skipped)`);
-      console.log(`  • Scoring: ${scoringTime}ms (${relevantNewArticles.length}/${newArticles.length} new articles relevant)`);
-      console.log(`  • Storage: ${storageTime}ms (${relevantNewArticles.length} new articles stored)`);
-      console.log(`  • Final Result: ${relevantNewArticles.length} new relevant articles ready for summarization`);
+      console.log(`  • Scoring: ${scoringTime}ms (${topArticles.length}/${relevantNewArticles.length} top articles selected, limit: ${maxArticles})`);
+      console.log(`  • Storage: ${storageTime}ms (${topArticles.length} articles stored)`);
+      console.log(`  • Final Result: ${topArticles.length} top-scoring articles ready for summarization`);
       console.log('='.repeat(80));
 
           return {
             success: true,
-            data: relevantNewArticles, // Return only new relevant articles
+            data: topArticles, // Return only top articles
             metadata: {
               executionTime: totalTime,
               extractionTime,
@@ -568,7 +571,9 @@ export class SearchTools {
               totalArticles: articles.length,
               newArticles: newArticles.length,
               duplicateArticles: articles.length - newArticles.length,
-              relevantNewArticles: relevantNewArticles.length,
+              relevantNewArticles: relevantNewArticles.length,  // How many passed threshold
+              topArticlesStored: topArticles.length,  // NEW: How many were actually stored
+              maxArticlesLimit: maxArticles,  // NEW: The limit that was applied
               threshold,
               cost: 0,
               tokens: 0

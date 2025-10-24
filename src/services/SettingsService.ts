@@ -46,7 +46,8 @@ export class SettingsService {
           llmModel: 'gpt-4o',
           llmTemperature: 0.3,
           llmMaxTokens: 1000,
-          relevancyThreshold: 0.2
+          relevancyThreshold: 0.2,
+          maxArticlesToSummarize: 10
         };
       }
 
@@ -59,7 +60,8 @@ export class SettingsService {
         llmModel: data?.llm_model || 'gpt-4o',
         llmTemperature: data?.llm_temperature ?? 0.3,
         llmMaxTokens: data?.llm_max_tokens || 1000,
-        relevancyThreshold: data?.relevancy_threshold ?? 0.2
+        relevancyThreshold: data?.relevancy_threshold ?? 0.2,
+        maxArticlesToSummarize: data?.max_articles_to_summarize || 10
       };
 
     } catch (error) {
@@ -74,7 +76,8 @@ export class SettingsService {
         llmModel: 'gpt-4o',
         llmTemperature: 0.3,
         llmMaxTokens: 1000,
-        relevancyThreshold: 0.2
+        relevancyThreshold: 0.2,
+        maxArticlesToSummarize: 10
       };
     }
   }

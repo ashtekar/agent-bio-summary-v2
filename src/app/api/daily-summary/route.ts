@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
           emailTemplate: 'default',
           llmModel: 'gpt-4o',
           llmTemperature: 0.3,
-          llmMaxTokens: 1000
+          llmMaxTokens: 1000,
+          relevancyThreshold: 0.2,
+          maxArticlesToSummarize: 10
         } as SystemSettings,
         
         recipients: [

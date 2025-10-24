@@ -106,7 +106,9 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     
     // Tool pulls relevancy threshold from context (user preferences)
     const relevancyThreshold = state.context?.systemSettings?.relevancyThreshold ?? 0.2;
+    const maxArticles = state.context?.systemSettings?.maxArticlesToSummarize ?? 10;
     console.log(`[EXTRACT-SCORE-STORE] Using relevancy threshold from context: ${relevancyThreshold}`);
+    console.log(`[EXTRACT-SCORE-STORE] Using max articles limit from context: ${maxArticles}`);
     
     if (!state.searchResults || state.searchResults.length === 0) {
       console.log(`[EXTRACT-SCORE-STORE] No results in session ${sessionId}, searching all sessions...`);
@@ -126,7 +128,9 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
           
           // Use threshold from this session's context
           const sessionThreshold = sessionState.context?.systemSettings?.relevancyThreshold ?? 0.2;
+          const sessionMaxArticles = sessionState.context?.systemSettings?.maxArticlesToSummarize ?? 10;
           console.log(`[EXTRACT-SCORE-STORE] Using relevancy threshold from found session: ${sessionThreshold}`);
+          console.log(`[EXTRACT-SCORE-STORE] Using max articles limit from found session: ${sessionMaxArticles}`);
           
           const result = await searchTools.extractScoreAndStoreArticles(
             sessionState.searchResults,
@@ -136,7 +140,8 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
               maxResults: sessionState.searchResults.length,
               sources: [],
               dateRange: 'd7'
-            }
+            },
+            sessionMaxArticles
           );
           return JSON.stringify(result);
         }
@@ -162,7 +167,8 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     const result = await searchTools.extractScoreAndStoreArticles(
       state.searchResults,
       relevancyThreshold,
-      searchSettings
+      searchSettings,
+      maxArticles
     );
     
     // Store processed articles in state
