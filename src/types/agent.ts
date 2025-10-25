@@ -110,3 +110,43 @@ export interface Thread {
     [key: string]: any;
   };
 }
+
+// Database record types for summary storage
+export interface ArticleSummaryRecord {
+  id: string;
+  article_id: string;
+  thread_id: string;
+  summary: string;
+  model_used: string;
+  langsmith_run_id: string;
+  created_at: Date;
+  // Human evaluation fields (nullable, for future use case 2)
+  human_overall_score?: number;
+  human_simple_terminology?: number;
+  human_clear_concept?: number;
+  human_clear_methodology?: number;
+  human_balanced_details?: number;
+  human_feedback?: string;
+  evaluated_by?: string;
+  evaluated_at?: Date;
+}
+
+export interface DailySummaryRecord {
+  id: string;
+  thread_id: string;
+  collated_summary: string;
+  html_content: string | null;
+  collation_model: string;
+  articles_summarized: number;
+  langsmith_run_id: string;
+  created_at: Date;
+  // Human evaluation fields (nullable, for future use case 2)
+  human_overall_score?: number;
+  human_simple_terminology?: number;
+  human_clear_concept?: number;
+  human_clear_methodology?: number;
+  human_balanced_details?: number;
+  human_feedback?: string;
+  evaluated_by?: string;
+  evaluated_at?: Date;
+}
