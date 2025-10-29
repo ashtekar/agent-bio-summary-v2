@@ -287,6 +287,68 @@ export class EmailTools {
         .article-link a {
             font-weight: bold;
         }
+        .intro-section {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .intro-section p {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        .article-block {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .article-block:last-of-type {
+            border-bottom: none;
+        }
+        .article-block h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 22px;
+            line-height: 1.4;
+        }
+        .article-block h2 a {
+            color: #2c3e50;
+            text-decoration: none;
+        }
+        .article-block h2 a:hover {
+            color: #3498db;
+        }
+        .article-meta {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+        .article-meta .source {
+            font-weight: 600;
+        }
+        .article-meta .relevancy {
+            color: #27ae60;
+        }
+        .article-summary {
+            margin: 15px 0;
+            line-height: 1.7;
+        }
+        .article-summary p {
+            margin: 0 0 10px 0;
+            text-align: left;
+        }
+        .article-link {
+            margin-top: 12px;
+        }
+        .article-link a {
+            color: #3498db;
+            font-weight: 500;
+            font-size: 14px;
+        }
         @media (max-width: 600px) {
             body {
                 padding: 10px;
