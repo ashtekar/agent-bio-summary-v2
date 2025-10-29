@@ -11,11 +11,34 @@ interface Summary {
   articlesCount: number;
   status: string;
   content?: string;
+  langsmithRunId?: string;
   articles?: Array<{
     title: string;
     url: string;
     snippet: string;
     score: number;
+  }>;
+}
+
+interface DailySummaryData {
+  dailySummary: {
+    id: string;
+    thread_id: string;
+    collated_summary: string;
+    html_content: string | null;
+    collation_model: string;
+    articles_summarized: number;
+    langsmith_run_id: string;
+    created_at: string;
+  } | null;
+  articleSummaries: Array<{
+    id: string;
+    article_id: string;
+    thread_id: string;
+    summary: string;
+    model_used: string;
+    langsmith_run_id: string;
+    created_at: string;
   }>;
 }
 
@@ -64,15 +87,51 @@ export default function DailySummaries() {
     }
   }
 
-  function selectSummary(summary: Summary) {
-    // TODO: Load full summary content
-    setSelectedSummary({
-      ...summary,
-      content: '<h2>Sample HTML Content</h2><p>This is where the actual summary content would appear.</p>',
-      articles: [
-        { title: 'Example Article', url: 'https://example.com', snippet: 'Sample snippet...', score: 4 }
-      ]
-    });
+  async function selectSummary(summary: Summary) {
+    try {
+      // Fetch full summary content from API
+      const response = await fetch(`/api/summaries?threadId=${summary.id}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        const data: DailySummaryData = result.data;
+        
+        if (data.dailySummary) {
+          setSelectedSummary({
+            ...summary,
+            content: data.dailySummary.collated_summary,
+            langsmithRunId: data.dailySummary.langsmith_run_id,
+            articles: data.articleSummaries.map(article => ({
+              title: `Article ${article.article_id}`,
+              url: '#',
+              snippet: article.summary.substring(0, 150) + '...',
+              score: 4 // Placeholder score
+            }))
+          });
+        } else {
+          // No summary data available
+          setSelectedSummary({
+            ...summary,
+            content: 'No summary data available for this thread.',
+            articles: []
+          });
+        }
+      } else {
+        console.error('Failed to fetch summary details');
+        setSelectedSummary({
+          ...summary,
+          content: 'Failed to load summary content.',
+          articles: []
+        });
+      }
+    } catch (error) {
+      console.error('Error loading summary details:', error);
+      setSelectedSummary({
+        ...summary,
+        content: 'Error loading summary content.',
+        articles: []
+      });
+    }
   }
 
   function copyContent(type: 'html' | 'text') {
@@ -146,6 +205,16 @@ export default function DailySummaries() {
                     className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm"
                   >
                     Export PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Get LangSmith URL from the selected summary data
+                      const langsmithUrl = `https://smith.langchain.com/o/${process.env.LANGCHAIN_ORG_ID}/projects/p/${process.env.LANGCHAIN_PROJECT}/r/${selectedSummary.langsmithRunId}`;
+                      window.open(langsmithUrl, '_blank');
+                    }}
+                    className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
+                  >
+                    View LangSmith Trace
                   </button>
                 </div>
 

@@ -1,5 +1,7 @@
 import { Article, ArticleSummary, ToolResult, EvaluationResult } from '@/types/agent';
 import { langchainIntegration } from '@/lib/langchain';
+import { summaryStorageService } from '@/services/SummaryStorageService';
+import { toolStateManager } from './ToolState';
 
 export class SummaryTools {
   private summarizationLangchain: any;  // For individual articles
@@ -32,6 +34,15 @@ export class SummaryTools {
     try {
       console.log(`Generating summaries for ${articles.length} articles`);
       
+      // Get threadId from tool state
+      const sessionId = this.getSessionId();
+      const toolState = toolStateManager.getState(sessionId);
+      const threadId = toolState.context?.threadId;
+      
+      if (!threadId) {
+        console.warn('No threadId found in tool state, skipping database storage');
+      }
+      
       const summaries: ArticleSummary[] = [];
       let totalCost = 0;
       let totalTokens = 0;
@@ -52,6 +63,22 @@ export class SummaryTools {
             
             totalCost += summaryResult.cost;
             totalTokens += summaryResult.tokens;
+            
+            // Save to database if threadId is available
+            if (threadId && summaryResult.runId) {
+              try {
+                await summaryStorageService.saveArticleSummary({
+                  articleId: article.id,
+                  threadId: threadId,
+                  summary: summaryResult.summary,
+                  modelUsed: this.summarizationLangchain.modelName || 'gpt-4o-mini',
+                  langsmithRunId: summaryResult.runId
+                });
+              } catch (storageError) {
+                console.warn(`Failed to save article summary to database:`, storageError);
+                // Continue execution even if storage fails
+              }
+            }
             
             return {
               articleId: article.id,
@@ -119,6 +146,15 @@ export class SummaryTools {
     try {
       console.log(`Collating ${summaries.length} summaries into final format`);
       
+      // Get threadId from tool state
+      const sessionId = this.getSessionId();
+      const toolState = toolStateManager.getState(sessionId);
+      const threadId = toolState.context?.threadId;
+      
+      if (!threadId) {
+        console.warn('No threadId found in tool state, skipping database storage');
+      }
+      
       // Note: Quality evaluation now happens asynchronously in LangSmith UI
       // We collate all summaries since quality scores are not available synchronously
       const qualitySummaries = summaries;
@@ -130,6 +166,23 @@ export class SummaryTools {
       // Generate collated summary using Langchain
       const summaryTexts = qualitySummaries.map(s => s.summary);
       const collatedResult = await this.collationLangchain.generateCollatedSummary(summaryTexts);
+      
+      // Save to database if threadId is available
+      if (threadId && collatedResult.runId) {
+        try {
+          await summaryStorageService.saveDailySummary({
+            threadId: threadId,
+            collatedSummary: collatedResult.summary,
+            htmlContent: collatedResult.summary, // For now, use summary as HTML content
+            collationModel: this.collationLangchain.modelName || 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1',
+            articlesSummarized: qualitySummaries.length,
+            langsmithRunId: collatedResult.runId
+          });
+        } catch (storageError) {
+          console.warn(`Failed to save daily summary to database:`, storageError);
+          // Continue execution even if storage fails
+        }
+      }
       
       console.log(`Successfully collated summaries (Quality evaluation will be performed by LangSmith UI evaluators)`);
       
@@ -172,5 +225,14 @@ export class SummaryTools {
       chunks.push(array.slice(i, i + chunkSize));
     }
     return chunks;
+  }
+
+  /**
+   * Get current session ID for tool state access
+   */
+  private getSessionId(): string {
+    // Import the function from LangChainTools
+    const { getToolSessionId } = require('./LangChainTools');
+    return getToolSessionId();
   }
 }

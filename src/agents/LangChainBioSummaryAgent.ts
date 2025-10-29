@@ -96,12 +96,13 @@ export class LangChainBioSummaryAgent {
       // Set session ID for tools to access shared state
       setToolSessionId(this.context.sessionId);
       
-      // Store context in toolState so tools can access recipients
+      // Store context in toolState so tools can access recipients and threadId
       toolStateManager.updateState(this.context.sessionId, {
         context: {
           recipients: this.context.recipients,
           searchSettings: this.context.searchSettings,
-          systemSettings: this.context.systemSettings
+          systemSettings: this.context.systemSettings,
+          threadId: this.context.threadId
         }
       });
       console.log('[AGENT] Stored context in toolState for session:', this.context.sessionId);
