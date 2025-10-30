@@ -104,11 +104,11 @@ export default function DailySummaries() {
             content: data.dailySummary.collated_summary,
             langsmithRunId: data.dailySummary.langsmith_run_id,
             langsmithUrl: data.dailySummary.langsmith_url,
-            articles: data.articleSummaries.map(article => ({
-              title: `Article ${article.article_id}`,
-              url: '#',
+            articles: data.articleSummaries.map((article: any) => ({
+              title: article.article_title || `Article ${article.article_id}`,
+              url: article.article_url || '#',
               snippet: article.summary.substring(0, 150) + '...',
-              score: 4 // Placeholder score
+              score: article.article_relevancy_score ? Math.round(article.article_relevancy_score * 5) : 4 // Convert 0-1 score to 0-5 scale
             }))
           });
         } else {

@@ -74,9 +74,11 @@ export class SummaryTools {
                   modelUsed: this.summarizationLangchain.modelName || 'gpt-4o-mini',
                   langsmithRunId: summaryResult.runId
                 });
+                console.log(`✅ Saved article summary for article ${article.id} to database`);
               } catch (storageError) {
-                console.warn(`Failed to save article summary to database:`, storageError);
+                console.warn(`⚠️ Failed to save article summary for article ${article.id} to database (article may not exist in articles table):`, storageError);
                 // Continue execution even if storage fails
+                // Note: This can happen if the article wasn't stored in the articles table first
               }
             }
             
@@ -156,8 +158,18 @@ export class SummaryTools {
         throw new Error('No summaries available for collation');
       }
       
-      // Build deterministic HTML
-      const collatedHtml = this.buildDeterministicCollation(summaries, storedArticles);
+      // Filter summaries to only include those with articles in storedArticles
+      // This ensures the HTML count matches what was actually stored in the database
+      const storedArticleIds = new Set(storedArticles.map(a => a.id));
+      const validSummaries = summaries.filter(s => storedArticleIds.has(s.articleId));
+      
+      if (validSummaries.length < summaries.length) {
+        console.warn(`⚠️ Filtered out ${summaries.length - validSummaries.length} summaries that don't have corresponding stored articles`);
+        console.warn(`⚠️ This usually means articles were filtered by relevancy but still summarized`);
+      }
+      
+      // Build deterministic HTML with filtered summaries
+      const collatedHtml = this.buildDeterministicCollation(validSummaries, storedArticles);
       
       // Save to database
       // Note: No LangSmith evaluation needed - collation is deterministic (no LLM, no variability to evaluate)
@@ -168,7 +180,7 @@ export class SummaryTools {
             collatedSummary: collatedHtml,
             htmlContent: collatedHtml,
             collationModel: 'deterministic-template-v1',
-            articlesSummarized: summaries.length,
+            articlesSummarized: validSummaries.length, // Use filtered count
             langsmithRunId: `deterministic-${threadId}-${Date.now()}`
           });
         } catch (storageError) {
@@ -177,7 +189,7 @@ export class SummaryTools {
         }
       }
       
-      console.log(`Successfully collated summaries using deterministic template`);
+      console.log(`Successfully collated ${validSummaries.length} summaries using deterministic template`);
       
       return {
         success: true,

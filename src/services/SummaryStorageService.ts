@@ -102,7 +102,16 @@ export class SummaryStorageService {
 
       const { data, error } = await this.supabase
         .from('article_summaries')
-        .select('*')
+        .select(`
+          *,
+          articles:article_id (
+            id,
+            title,
+            url,
+            source,
+            relevancy_score
+          )
+        `)
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
 
@@ -125,7 +134,12 @@ export class SummaryStorageService {
         human_balanced_details: row.human_balanced_details,
         human_feedback: row.human_feedback,
         evaluated_by: row.evaluated_by,
-        evaluated_at: row.evaluated_at ? new Date(row.evaluated_at) : undefined
+        evaluated_at: row.evaluated_at ? new Date(row.evaluated_at) : undefined,
+        // Add article metadata from join
+        article_title: row.articles?.title,
+        article_url: row.articles?.url,
+        article_source: row.articles?.source,
+        article_relevancy_score: row.articles?.relevancy_score
       }));
 
     } catch (error) {

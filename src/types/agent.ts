@@ -129,6 +129,11 @@ export interface ArticleSummaryRecord {
   human_feedback?: string;
   evaluated_by?: string;
   evaluated_at?: Date;
+  // Article metadata from JOIN (optional, populated when joined with articles table)
+  article_title?: string;
+  article_url?: string;
+  article_source?: string;
+  article_relevancy_score?: number;
 }
 
 export interface DailySummaryRecord {
