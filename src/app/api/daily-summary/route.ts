@@ -67,11 +67,11 @@ export async function POST(request: NextRequest) {
       context = { ...defaultContext, ...body };
     }
 
-    // Create thread for this daily summary run
+    // Get or create thread for this daily summary run
     const runDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     
     try {
-      thread = await threadService.createThread({
+      thread = await threadService.getOrCreateThread({
         run_date: runDate,
         metadata: {
           sessionId: `session_${Date.now()}`,
@@ -87,9 +87,9 @@ export async function POST(request: NextRequest) {
       threadId = thread.id;
       context.threadId = threadId;
       
-      console.log(`✅ Created thread: ${threadId} for daily summary ${runDate}`);
+      console.log(`✅ Using thread: ${threadId} for daily summary ${runDate}`);
     } catch (threadError) {
-      console.warn('Failed to create thread, continuing without thread tracking:', threadError);
+      console.warn('Failed to get or create thread, continuing without thread tracking:', threadError);
     }
 
     // Create and execute agent (based on feature flag)
