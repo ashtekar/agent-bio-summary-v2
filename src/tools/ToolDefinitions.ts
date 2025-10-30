@@ -200,7 +200,7 @@ export const summaryToolDefinitions: FunctionDefinition[] = [
   },
   {
     name: 'collateSummary',
-    description: 'Combine individual article summaries into a single HTML email newsletter format',
+    description: 'Combine individual article summaries into HTML email newsletter using deterministic template (preserves summaries verbatim without modification)',
     parameters: {
       type: 'object',
       properties: {

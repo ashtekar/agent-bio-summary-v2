@@ -337,7 +337,7 @@ export const summarizeArticleTool = new DynamicStructuredTool({
  */
 export const collateSummaryTool = new DynamicStructuredTool({
   name: 'collateSummary',
-  description: 'Combine individual article summaries into a single HTML email newsletter format. Reads summaries from state (populated by summarizeArticle). Automatically evaluates final quality using LLM-as-a-judge. IMPORTANT: Call summarizeArticle first to generate summaries.',
+  description: 'Combine individual article summaries into a single HTML email newsletter format using deterministic template. Preserves summaries verbatim without modification. Reads summaries from state (populated by summarizeArticle). IMPORTANT: Call summarizeArticle first to generate summaries.',
   schema: z.object({
     // No parameters needed - reads all summaries from state
   }),

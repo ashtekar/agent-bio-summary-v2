@@ -140,43 +140,36 @@ export class SummaryTools {
   }
 
   /**
-   * Collate individual summaries into final HTML email format
+   * Collate individual summaries into final HTML email format using deterministic template
    */
   async collateSummary(summaries: ArticleSummary[]): Promise<ToolResult> {
     try {
-      console.log(`Collating ${summaries.length} summaries into final format`);
+      console.log(`Collating ${summaries.length} summaries using deterministic template`);
       
-      // Get threadId from tool state
+      // Get threadId and stored articles from tool state
       const sessionId = this.getSessionId();
       const toolState = toolStateManager.getState(sessionId);
       const threadId = toolState.context?.threadId;
+      const storedArticles = toolState.storedArticles || [];
       
-      if (!threadId) {
-        console.warn('No threadId found in tool state, skipping database storage');
-      }
-      
-      // Note: Quality evaluation now happens asynchronously in LangSmith UI
-      // We collate all summaries since quality scores are not available synchronously
-      const qualitySummaries = summaries;
-      
-      if (qualitySummaries.length === 0) {
+      if (summaries.length === 0) {
         throw new Error('No summaries available for collation');
       }
-
-      // Generate collated summary using Langchain
-      const summaryTexts = qualitySummaries.map(s => s.summary);
-      const collatedResult = await this.collationLangchain.generateCollatedSummary(summaryTexts);
       
-      // Save to database if threadId is available
-      if (threadId && collatedResult.runId) {
+      // Build deterministic HTML
+      const collatedHtml = this.buildDeterministicCollation(summaries, storedArticles);
+      
+      // Save to database
+      // Note: No LangSmith evaluation needed - collation is deterministic (no LLM, no variability to evaluate)
+      if (threadId) {
         try {
           await summaryStorageService.saveDailySummary({
             threadId: threadId,
-            collatedSummary: collatedResult.summary,
-            htmlContent: collatedResult.summary, // For now, use summary as HTML content
-            collationModel: this.collationLangchain.modelName || 'ft:gpt-4.1-nano-2025-04-14:personal::CFRUvxM1',
-            articlesSummarized: qualitySummaries.length,
-            langsmithRunId: collatedResult.runId
+            collatedSummary: collatedHtml,
+            htmlContent: collatedHtml,
+            collationModel: 'deterministic-template-v1',
+            articlesSummarized: summaries.length,
+            langsmithRunId: `deterministic-${threadId}-${Date.now()}`
           });
         } catch (storageError) {
           console.warn(`Failed to save daily summary to database:`, storageError);
@@ -184,18 +177,17 @@ export class SummaryTools {
         }
       }
       
-      console.log(`Successfully collated summaries (Quality evaluation will be performed by LangSmith UI evaluators)`);
+      console.log(`Successfully collated summaries using deterministic template`);
       
       return {
         success: true,
-        data: collatedResult.summary,
+        data: collatedHtml,
         metadata: {
           executionTime: Date.now(),
-          cost: collatedResult.cost,
-          tokens: collatedResult.tokens
+          cost: 0, // No LLM cost
+          tokens: 0
         }
       };
-
     } catch (error) {
       console.error('Summary collation failed:', error);
       return {
@@ -205,6 +197,69 @@ export class SummaryTools {
     }
   }
 
+
+  /**
+   * Build deterministic HTML collation from summaries and article metadata
+   */
+  private buildDeterministicCollation(
+    summaries: ArticleSummary[], 
+    storedArticles: Article[]
+  ): string {
+    // Create article map for metadata lookup
+    const articleMap = new Map(storedArticles.map(a => [a.id, a]));
+    
+    // Build intro section
+    const intro = `
+    <div class="intro-section">
+      <p>Today's newsletter covers <strong>${summaries.length} article${summaries.length !== 1 ? 's' : ''}</strong> in synthetic biology and biotechnology.</p>
+    </div>
+  `;
+    
+    // Build article blocks (VERBATIM summaries)
+    const articles = summaries.map((summary, idx) => {
+      const article = articleMap.get(summary.articleId);
+      const title = article?.title || `Article ${idx + 1}`;
+      const url = article?.url || '#';
+      const source = article?.source || 'Unknown Source';
+      const relevancy = article?.relevancyScore || 0;
+      
+      return `
+    <article class="article-block">
+      <h2>
+        <a href="${this.escapeHtml(url)}">
+          ${this.escapeHtml(title)}
+        </a>
+      </h2>
+      <div class="article-meta">
+        <span class="source">${this.escapeHtml(source)}</span> • 
+        <span class="relevancy">Relevancy: ${Math.round(relevancy * 100)}%</span>
+      </div>
+      <div class="article-summary">
+        ${summary.summary}
+      </div>
+      <div class="article-link">
+        <a href="${this.escapeHtml(url)}" target="_blank">Read full article →</a>
+      </div>
+    </article>
+    `;
+    }).join('\n');
+    
+    return intro + articles;
+  }
+
+  /**
+   * Escape HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const map: { [key: string]: string } = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+  }
 
   /**
    * Extract key points from summary
