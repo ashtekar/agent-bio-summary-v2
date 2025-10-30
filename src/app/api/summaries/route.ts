@@ -20,10 +20,24 @@ export async function GET(request: NextRequest) {
         summaryStorageService.getArticleSummariesByThread(threadId)
       ]);
 
+      // Build LangSmith URL on server side
+      let langsmithUrl = undefined;
+      if (dailySummary?.langsmith_run_id) {
+        const orgId = process.env.LANGCHAIN_ORG_ID;
+        const projectName = process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2';
+        
+        if (orgId && projectName) {
+          langsmithUrl = `https://smith.langchain.com/o/${orgId}/projects/p/${projectName}/r/${dailySummary.langsmith_run_id}`;
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: {
-          dailySummary,
+          dailySummary: dailySummary ? {
+            ...dailySummary,
+            langsmith_url: langsmithUrl
+          } : null,
           articleSummaries
         }
       });
