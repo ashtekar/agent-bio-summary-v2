@@ -12,6 +12,7 @@ interface Summary {
   status: string;
   content?: string;
   langsmithRunId?: string;
+  langsmithUrl?: string;
   articles?: Array<{
     title: string;
     url: string;
@@ -29,6 +30,7 @@ interface DailySummaryData {
     collation_model: string;
     articles_summarized: number;
     langsmith_run_id: string;
+    langsmith_url?: string;
     created_at: string;
   } | null;
   articleSummaries: Array<{
@@ -101,6 +103,7 @@ export default function DailySummaries() {
             ...summary,
             content: data.dailySummary.collated_summary,
             langsmithRunId: data.dailySummary.langsmith_run_id,
+            langsmithUrl: data.dailySummary.langsmith_url,
             articles: data.articleSummaries.map((article: any) => ({
               title: article.article_title || `Article ${article.article_id}`,
               url: article.article_url || '#',
@@ -206,16 +209,16 @@ export default function DailySummaries() {
                   >
                     Export PDF
                   </button>
-                  <button
-                    onClick={() => {
-                      // Get LangSmith URL from the selected summary data
-                      const langsmithUrl = `https://smith.langchain.com/o/${process.env.LANGCHAIN_ORG_ID}/projects/p/${process.env.LANGCHAIN_PROJECT}/r/${selectedSummary.langsmithRunId}`;
-                      window.open(langsmithUrl, '_blank');
-                    }}
-                    className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
-                  >
-                    View LangSmith Trace
-                  </button>
+                  {selectedSummary.langsmithUrl && (
+                    <button
+                      onClick={() => {
+                        window.open(selectedSummary.langsmithUrl, '_blank');
+                      }}
+                      className="bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
+                    >
+                      View LangSmith Trace
+                    </button>
+                  )}
                 </div>
 
                 {/* Daily Overview */}
