@@ -6,6 +6,7 @@ import { SummaryTools } from '@/tools/SummaryTools';
 import { EmailTools } from '@/tools/EmailTools';
 import { getAllToolDefinitions, ToolCall, ToolFunctionName } from '@/tools/ToolDefinitions';
 import { langchainIntegration } from '@/lib/langchain';
+import { randomUUID } from 'crypto';
 
 export class LLMDrivenBioSummaryAgent {
   private openai: OpenAI;
@@ -28,9 +29,12 @@ export class LLMDrivenBioSummaryAgent {
       dangerouslyAllowBrowser: true, // Allow browser usage for testing
     });
 
+    // Ensure threadId is always a valid UUID format
+    const threadId = initialContext.threadId || randomUUID();
+    
     this.context = {
       sessionId: this.generateSessionId(),
-      threadId: initialContext.threadId || `thread_${Date.now()}`, // Use provided threadId or generate
+      threadId: threadId, // Always use valid UUID format
       startTime: new Date(),
       currentStep: 'initialization',
       foundArticles: [],
