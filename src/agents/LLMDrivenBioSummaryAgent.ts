@@ -843,6 +843,7 @@ export class LLMDrivenBioSummaryAgent {
    */
   private generateFinalResult(): ToolResult {
     const success = this.isTaskComplete();
+    const executionTime = Date.now() - this.context.startTime.getTime();
     
     return {
       success,
@@ -857,7 +858,10 @@ export class LLMDrivenBioSummaryAgent {
       metadata: {
         sessionId: this.context.sessionId,
         agentType: 'llm_driven',
-        parentRunId: this.parentRunId || undefined
+        parentRunId: this.parentRunId || undefined,
+        executionTime,
+        cost: 0,
+        tokens: 0
       },
       error: success ? undefined : 'Task not completed successfully'
     };
