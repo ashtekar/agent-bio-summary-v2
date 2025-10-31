@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
 import Card from '@/components/Card';
@@ -45,6 +46,7 @@ interface DailySummaryData {
 }
 
 export default function DailySummaries() {
+  const searchParams = useSearchParams();
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [selectedSummary, setSelectedSummary] = useState<Summary | null>(null);
   const [format, setFormat] = useState<'auto' | 'html' | 'text'>('auto');
@@ -59,12 +61,14 @@ export default function DailySummaries() {
       // Fetch threads from API
       const response = await fetch('/api/threads?limit=20');
       
+      let transformedSummaries: Summary[] = [];
+      
       if (response.ok) {
         const result = await response.json();
         const threads = result.data || [];
         
         // Transform threads to summaries
-        const transformedSummaries = threads.map((thread: any) => ({
+        transformedSummaries = threads.map((thread: any) => ({
           id: thread.id,
           date: thread.run_date,
           articlesCount: thread.articles_processed || 0,
@@ -74,13 +78,23 @@ export default function DailySummaries() {
         setSummaries(transformedSummaries);
       } else {
         // Fallback to mock data
-        setSummaries([
+        transformedSummaries = [
           { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
           { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
           { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
           { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
           { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
-        ]);
+        ];
+        setSummaries(transformedSummaries);
+      }
+
+      // Auto-select summary if threadId is in query params
+      const threadId = searchParams.get('threadId');
+      if (threadId && transformedSummaries.length > 0) {
+        const summaryToSelect = transformedSummaries.find(s => s.id === threadId);
+        if (summaryToSelect) {
+          await selectSummary(summaryToSelect);
+        }
       }
     } catch (error) {
       console.error('Failed to load summaries:', error);

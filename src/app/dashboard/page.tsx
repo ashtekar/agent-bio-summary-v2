@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
 import Card from '@/components/Card';
@@ -20,6 +21,7 @@ interface RecentSummary {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentSummaries, setRecentSummaries] = useState<RecentSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,7 +188,10 @@ export default function Dashboard() {
                   <span className="text-xs bg-green-900 text-green-300 px-3 py-1 rounded-full">
                     {summary.status}
                   </span>
-                  <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                  <button 
+                    onClick={() => router.push(`/summaries?threadId=${summary.id}`)}
+                    className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                  >
                     View
                   </button>
                 </div>
