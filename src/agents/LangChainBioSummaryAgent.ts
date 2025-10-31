@@ -124,6 +124,16 @@ export class LangChainBioSummaryAgent {
         tags: ['agent_execution', 'langchain', 'bio_summary']
       });
 
+      // Store parentRunId in tool state for tools to access
+      if (this.parentRunId) {
+        toolStateManager.updateState(this.context.sessionId, {
+          context: {
+            ...toolStateManager.getState(this.context.sessionId)?.context,
+            parentRunId: this.parentRunId
+          }
+        });
+      }
+
       // Initialize agent (async operation)
       await this.initializeAgent();
 
@@ -298,6 +308,7 @@ Use the available tools in the proper sequence to complete the task.`;
         model: this.context.systemSettings.llmModel,
         steps: result.intermediateSteps?.length || 0,
         agentType: 'langchain',
+        parentRunId: this.parentRunId || undefined,
         cost: 0,
         tokens: 0
       },

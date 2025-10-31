@@ -175,13 +175,14 @@ export class SummaryTools {
       // Note: No LangSmith evaluation needed - collation is deterministic (no LLM, no variability to evaluate)
       if (threadId) {
         try {
+          const parentRunId = (toolState?.context as any)?.parentRunId as string | undefined;
           await summaryStorageService.saveDailySummary({
             threadId: threadId,
             collatedSummary: collatedHtml,
             htmlContent: collatedHtml,
             collationModel: 'deterministic-template-v1',
             articlesSummarized: validSummaries.length, // Use filtered count
-            langsmithRunId: `deterministic-${threadId}-${Date.now()}`
+            langsmithRunId: parentRunId || `deterministic-${threadId}-${Date.now()}`
           });
         } catch (storageError) {
           console.warn(`Failed to save daily summary to database:`, storageError);
@@ -222,9 +223,7 @@ export class SummaryTools {
     
     // Build intro section
     const intro = `
-    <div class="intro-section">
-      <p>Today's newsletter covers <strong>${summaries.length} article${summaries.length !== 1 ? 's' : ''}</strong> in synthetic biology and biotechnology.</p>
-    </div>
+    <p style="text-align: left; font-weight: normal; margin-bottom: 20px;">Today's newsletter covers ${summaries.length} article${summaries.length !== 1 ? 's' : ''} in synthetic biology and biotechnology.</p>
   `;
     
     // Build article blocks (VERBATIM summaries)
