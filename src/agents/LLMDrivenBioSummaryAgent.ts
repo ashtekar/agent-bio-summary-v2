@@ -6,6 +6,8 @@ import { SummaryTools } from '@/tools/SummaryTools';
 import { EmailTools } from '@/tools/EmailTools';
 import { getAllToolDefinitions, ToolCall, ToolFunctionName } from '@/tools/ToolDefinitions';
 import { langchainIntegration } from '@/lib/langchain';
+import { setToolSessionId } from '@/tools/LangChainTools';
+import { toolStateManager } from '@/tools/ToolState';
 import { randomUUID } from 'crypto';
 
 export class LLMDrivenBioSummaryAgent {
@@ -17,6 +19,7 @@ export class LLMDrivenBioSummaryAgent {
   private emailTools: EmailTools;
   private maxIterations: number = 10;
   private currentIteration: number = 0;
+  private parentRunId: string | null = null;
 
   constructor(initialContext: Partial<AgentContext>) {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -65,8 +68,19 @@ export class LLMDrivenBioSummaryAgent {
     try {
       console.log(`Starting LLM-driven BioSummaryAgent execution - Session: ${this.context.sessionId}`);
       
+      // Set session ID and tool state for consistency with LangChain agent tools
+      setToolSessionId(this.context.sessionId);
+      toolStateManager.updateState(this.context.sessionId, {
+        context: {
+          recipients: this.context.recipients,
+          searchSettings: this.context.searchSettings,
+          systemSettings: this.context.systemSettings,
+          threadId: this.context.threadId
+        }
+      });
+
       // Create initial trace with thread metadata
-      await langchainIntegration.createTrace({
+      this.parentRunId = await langchainIntegration.createTrace({
         name: 'llm_driven_bio_summary',
         inputs: this.context,
         metadata: { 
@@ -83,6 +97,16 @@ export class LLMDrivenBioSummaryAgent {
           `model:${this.context.systemSettings.llmModel}`
         ]
       });
+
+      // Store parentRunId in tool state for tools to access
+      if (this.parentRunId) {
+        toolStateManager.updateState(this.context.sessionId, {
+          context: {
+            ...toolStateManager.getState(this.context.sessionId)?.context,
+            parentRunId: this.parentRunId
+          }
+        });
+      }
 
       const result = await this.executeWithLLM();
       
@@ -819,6 +843,7 @@ export class LLMDrivenBioSummaryAgent {
    */
   private generateFinalResult(): ToolResult {
     const success = this.isTaskComplete();
+    const executionTime = Date.now() - this.context.startTime.getTime();
     
     return {
       success,
@@ -829,6 +854,14 @@ export class LLMDrivenBioSummaryAgent {
         finalSummary: this.context.finalSummary,
         iterationsUsed: this.currentIteration,
         lastSuccessfulStep: this.context.lastSuccessfulStep
+      },
+      metadata: {
+        sessionId: this.context.sessionId,
+        agentType: 'llm_driven',
+        parentRunId: this.parentRunId || undefined,
+        executionTime,
+        cost: 0,
+        tokens: 0
       },
       error: success ? undefined : 'Task not completed successfully'
     };

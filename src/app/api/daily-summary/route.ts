@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { LLMDrivenBioSummaryAgent } from '@/agents/LLMDrivenBioSummaryAgent';
 import { LangChainBioSummaryAgent } from '@/agents/LangChainBioSummaryAgent';
 import { SearchSettings, SystemSettings, EmailRecipient } from '@/types/agent';
@@ -131,10 +132,14 @@ export async function POST(request: NextRequest) {
           ? `https://smith.langchain.com/o/${orgId}/projects/p/${projectName}?timeModel=absolute&startTime=${thread.started_at.toISOString()}`
           : undefined;
 
+        // Prefer direct run link if agent returned a parent run id
+        const langsmithRunId = (result as any)?.metadata?.parentRunId;
+
         await threadService.completeThread(threadId, {
           status: result.success ? 'completed' : 'failed',
           email_sent: emailSent,
           langsmith_url: langsmithUrl,
+          langsmith_run_id: langsmithRunId,
           articles_found: articlesFound,
           articles_processed: articlesProcessed,
           error_message: result.error
