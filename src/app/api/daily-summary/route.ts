@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { LLMDrivenBioSummaryAgent } from '@/agents/LLMDrivenBioSummaryAgent';
 import { LangChainBioSummaryAgent } from '@/agents/LangChainBioSummaryAgent';
 import { SearchSettings, SystemSettings, EmailRecipient } from '@/types/agent';
