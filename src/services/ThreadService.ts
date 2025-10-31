@@ -76,7 +76,7 @@ export class ThreadService {
 
   /**
    * Get or create a thread for a daily summary run
-   * This method handles the case where a thread already exists for the given date
+   * This method handles race conditions atomically using PostgreSQL INSERT ... ON CONFLICT
    */
   async getOrCreateThread(params: {
     run_date: string;
@@ -87,43 +87,93 @@ export class ThreadService {
         throw new Error('Supabase client not initialized');
       }
 
-      // First, check if a thread already exists for this date
-      const existingThread = await this.getThreadByDate(params.run_date);
-      
-      if (existingThread) {
-        console.log(`✅ Found existing thread: ${existingThread.id} for run_date: ${params.run_date}`);
-        
-        // If the existing thread is completed or failed, reset it to running
-        if (existingThread.status !== 'running') {
-          const { error } = await this.supabase
-            .from('threads')
-            .update({
-              status: 'running',
-              started_at: new Date().toISOString(),
-              completed_at: null,
-              articles_found: 0,
-              articles_processed: 0,
-              email_sent: false,
-              error_message: null,
-              metadata: params.metadata || existingThread.metadata
-            })
-            .eq('id', existingThread.id);
+      const threadId = randomUUID();
+      const now = new Date();
 
-          if (error) {
-            console.warn(`Failed to reset thread ${existingThread.id}:`, error.message);
-          } else {
-            console.log(`✅ Reset thread ${existingThread.id} to running state`);
-          }
+      // Use PostgreSQL INSERT ... ON CONFLICT to atomically handle race conditions
+      // This ensures only one thread is created per run_date even with concurrent requests
+      const threadData = {
+        id: threadId,
+        run_date: params.run_date,
+        status: 'running' as const,
+        articles_found: 0,
+        articles_processed: 0,
+        email_sent: false,
+        started_at: now.toISOString(),
+        metadata: params.metadata || {}
+      };
+
+      // Try to insert, and if run_date already exists, return the existing thread
+      // Using upsert with ON CONFLICT to handle race conditions
+      const { data, error } = await this.supabase
+        .from('threads')
+        .insert(threadData)
+        .select()
+        .single();
+
+      if (error) {
+        // If duplicate key error (race condition), fetch existing thread
+        if (error.code === '23505' || error.message.includes('duplicate key')) {
+          console.log(`⚠️ Thread already exists for run_date: ${params.run_date}, fetching existing thread...`);
           
-          // Fetch the updated thread
-          return (await this.getThread(existingThread.id)) || existingThread;
+          const existingThread = await this.getThreadByDate(params.run_date);
+          
+          if (existingThread) {
+            console.log(`✅ Found existing thread: ${existingThread.id} for run_date: ${params.run_date}`);
+            
+            // If the existing thread is completed or failed, reset it to running
+            if (existingThread.status !== 'running') {
+              const { error: updateError } = await this.supabase
+                .from('threads')
+                .update({
+                  status: 'running',
+                  started_at: now.toISOString(),
+                  completed_at: null,
+                  articles_found: 0,
+                  articles_processed: 0,
+                  email_sent: false,
+                  error_message: null,
+                  metadata: params.metadata || existingThread.metadata
+                })
+                .eq('id', existingThread.id);
+
+              if (updateError) {
+                console.warn(`Failed to reset thread ${existingThread.id}:`, updateError.message);
+              } else {
+                console.log(`✅ Reset thread ${existingThread.id} to running state`);
+              }
+              
+              // Fetch the updated thread
+              return (await this.getThread(existingThread.id)) || existingThread;
+            }
+            
+            return existingThread;
+          } else {
+            // Thread should exist but query failed, throw original error
+            throw new Error(`Failed to create thread: ${error.message}`);
+          }
+        } else {
+          // Some other error
+          throw new Error(`Failed to create thread: ${error.message}`);
         }
-        
-        return existingThread;
       }
 
-      // No existing thread, create a new one
-      return await this.createThread(params);
+      // Successfully created new thread
+      console.log(`✅ Created thread: ${threadId} for run_date: ${params.run_date}`);
+      
+      return {
+        id: data.id,
+        run_date: data.run_date,
+        status: data.status,
+        articles_found: data.articles_found,
+        articles_processed: data.articles_processed,
+        email_sent: data.email_sent,
+        langsmith_url: data.langsmith_url,
+        error_message: data.error_message,
+        started_at: new Date(data.started_at),
+        completed_at: data.completed_at ? new Date(data.completed_at) : undefined,
+        metadata: data.metadata
+      };
 
     } catch (error) {
       console.error('Error in getOrCreateThread:', error);

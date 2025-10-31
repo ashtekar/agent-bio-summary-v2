@@ -4,6 +4,7 @@ import { LangChainBioSummaryAgent } from '@/agents/LangChainBioSummaryAgent';
 import { SearchSettings, SystemSettings, EmailRecipient } from '@/types/agent';
 import { settingsService } from '@/services/SettingsService';
 import { threadService } from '@/services/ThreadService';
+import { randomUUID } from 'crypto';
 
 export async function POST(request: NextRequest) {
   let thread = null;
@@ -85,11 +86,23 @@ export async function POST(request: NextRequest) {
       });
       
       threadId = thread.id;
+      
+      // Validate threadId is a valid UUID format before using
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(threadId)) {
+        console.warn(`⚠️ Invalid thread ID format: ${threadId}, generating new UUID`);
+        threadId = randomUUID();
+      }
+      
       context.threadId = threadId;
       
       console.log(`✅ Using thread: ${threadId} for daily summary ${runDate}`);
     } catch (threadError) {
-      console.warn('Failed to get or create thread, continuing without thread tracking:', threadError);
+      console.warn('Failed to get or create thread, generating fallback UUID:', threadError);
+      // Generate valid UUID as fallback to ensure agent always has valid threadId
+      threadId = randomUUID();
+      context.threadId = threadId;
+      console.log(`✅ Using fallback thread: ${threadId} for daily summary ${runDate}`);
     }
 
     // Create and execute agent (based on feature flag)

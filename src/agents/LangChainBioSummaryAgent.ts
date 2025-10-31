@@ -10,6 +10,7 @@ import { allLangChainTools, setToolSessionId } from '@/tools/LangChainTools';
 import { AgentContext, ToolResult } from '@/types/agent';
 import { langchainIntegration } from '@/lib/langchain';
 import { toolStateManager } from '@/tools/ToolState';
+import { randomUUID } from 'crypto';
 
 export class LangChainBioSummaryAgent {
   private context: AgentContext;
@@ -28,12 +29,15 @@ export class LangChainBioSummaryAgent {
     // LANGCHAIN_TRACING_V2 controlled via Vercel environment variables
     
     // Initialize context
+    // Ensure threadId is always a valid UUID format
+    const threadId = initialContext.threadId || randomUUID();
+    
     this.context = {
       searchSettings: initialContext.searchSettings!,
       systemSettings: initialContext.systemSettings!,
       recipients: initialContext.recipients!,
       sessionId: `langchain_session_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-      threadId: initialContext.threadId || `thread_${Date.now()}`, // Use provided threadId or generate
+      threadId: threadId, // Always use valid UUID format
       startTime: new Date(),
       currentStep: 'initialization',
       foundArticles: [],
