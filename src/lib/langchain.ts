@@ -21,14 +21,20 @@ export class LangchainIntegration {
 
     // Initialize LangSmith client for annotations and custom tracking
     if (apiKey && tracingEnabled) {
+      const workspaceId = process.env.LANGSMITH_WORKSPACE_ID;
+      const orgId = process.env.LANGCHAIN_ORG_ID;
+      
+      // Validate configuration
+      if (orgId && !workspaceId) {
+        console.warn('⚠️ [LANGCHAIN] LANGSMITH_WORKSPACE_ID is required for tracing operations. LANGCHAIN_ORG_ID is only for Hub prompt paths.');
+      }
+      
       try {
-        const workspaceId = process.env.LANGSMITH_WORKSPACE_ID;
-        const orgId = process.env.LANGCHAIN_ORG_ID;
         this.client = new Client({
           apiKey,
-          // Use org ID for hub operations, workspace ID for tracing
-          ...(orgId && { workspaceId: orgId }),
-          ...(!orgId && workspaceId && { workspaceId })
+          // Always use workspace ID for tracing (never org ID)
+          // Org ID should only be used for Hub prompt paths, not Client initialization
+          ...(workspaceId && { workspaceId })
         });
         console.log(`✅ LangSmith client initialized for project: ${project}`);
       } catch (error) {

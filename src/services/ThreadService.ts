@@ -75,6 +75,63 @@ export class ThreadService {
   }
 
   /**
+   * Get or create a thread for a daily summary run
+   * This method handles the case where a thread already exists for the given date
+   */
+  async getOrCreateThread(params: {
+    run_date: string;
+    metadata?: Thread['metadata'];
+  }): Promise<Thread> {
+    try {
+      if (!this.supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      // First, check if a thread already exists for this date
+      const existingThread = await this.getThreadByDate(params.run_date);
+      
+      if (existingThread) {
+        console.log(`✅ Found existing thread: ${existingThread.id} for run_date: ${params.run_date}`);
+        
+        // If the existing thread is completed or failed, reset it to running
+        if (existingThread.status !== 'running') {
+          const { error } = await this.supabase
+            .from('threads')
+            .update({
+              status: 'running',
+              started_at: new Date().toISOString(),
+              completed_at: null,
+              articles_found: 0,
+              articles_processed: 0,
+              email_sent: false,
+              error_message: null,
+              metadata: params.metadata || existingThread.metadata
+            })
+            .eq('id', existingThread.id);
+
+          if (error) {
+            console.warn(`Failed to reset thread ${existingThread.id}:`, error.message);
+          } else {
+            console.log(`✅ Reset thread ${existingThread.id} to running state`);
+          }
+          
+          // Fetch the updated thread
+          return (await this.getThread(existingThread.id)) || existingThread;
+        }
+        
+        return existingThread;
+      }
+
+      // No existing thread, create a new one
+      return await this.createThread(params);
+
+    } catch (error) {
+      console.error('Error in getOrCreateThread:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Update thread metrics during execution
    */
   async updateThread(

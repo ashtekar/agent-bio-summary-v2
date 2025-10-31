@@ -8,6 +8,9 @@ import { randomUUID } from 'crypto';
 export class TracingWrapper {
   private client: Client | null;
   private projectName: string;
+  private tracingDisabled: boolean = false;
+  private failureCount: number = 0;
+  private readonly MAX_FAILURES = 3;
 
   constructor() {
     const apiKey = process.env.LANGCHAIN_API_KEY;
@@ -17,12 +20,17 @@ export class TracingWrapper {
     this.projectName = process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2';
 
     if (apiKey && tracingEnabled) {
+      // Validate configuration
+      if (orgId && !workspaceId) {
+        console.warn('⚠️ [TRACING] LANGSMITH_WORKSPACE_ID is required for tracing operations. LANGCHAIN_ORG_ID is only for Hub prompt paths.');
+      }
+      
       try {
         this.client = new Client({
           apiKey,
-          // Use org ID for hub operations, workspace ID for tracing
-          ...(orgId && { workspaceId: orgId }),
-          ...(!orgId && workspaceId && { workspaceId })
+          // Always use workspace ID for tracing (never org ID)
+          // Org ID should only be used for Hub prompt paths, not Client initialization
+          ...(workspaceId && { workspaceId })
         });
       } catch (error) {
         console.warn('⚠️ Failed to initialize tracing client:', error);
@@ -34,6 +42,48 @@ export class TracingWrapper {
   }
 
   /**
+   * Check if tracing should be disabled due to repeated failures
+   */
+  private shouldSkipTracing(): boolean {
+    if (this.tracingDisabled) {
+      return true;
+    }
+    if (this.failureCount >= this.MAX_FAILURES) {
+      console.warn(`⚠️ Tracing disabled after ${this.MAX_FAILURES} consecutive failures`);
+      this.tracingDisabled = true;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Handle tracing errors with special handling for 403 errors
+   */
+  private handleTracingError(toolName: string, error: any): void {
+    this.failureCount++;
+    
+    // Check if this is a 403 Forbidden error
+    const is403Error = error?.status === 403 || 
+                       (error?.message && error.message.includes('403')) ||
+                       (error?.message && error.message.includes('Forbidden'));
+    
+    if (is403Error) {
+      if (this.failureCount === 1) {
+        // Only log detailed message on first failure
+        console.warn(`⚠️ [TRACING] LangSmith tracing disabled: 403 Forbidden.`);
+        console.warn(`   Please check your LANGCHAIN_API_KEY and LANGSMITH_WORKSPACE_ID.`);
+        console.warn(`   Note: LANGCHAIN_ORG_ID is only for Hub prompt paths, not for tracing operations.`);
+      }
+      // Disable tracing immediately for 403 errors to avoid spamming logs
+      this.tracingDisabled = true;
+    } else {
+      // For other errors, log the error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`⚠️ [TRACING] Failed to create trace for ${toolName}:`, errorMessage);
+    }
+  }
+
+  /**
    * Wrap tool execution with automatic tracing
    */
   async traceToolExecution<T>(
@@ -41,8 +91,8 @@ export class TracingWrapper {
     fn: () => Promise<T>,
     metadata?: Record<string, any>
   ): Promise<T> {
-    if (!this.client) {
-      // Tracing disabled, just execute
+    if (!this.client || this.shouldSkipTracing()) {
+      // Tracing disabled or unavailable, just execute
       return await fn();
     }
 
@@ -69,9 +119,11 @@ export class TracingWrapper {
             success: true
           }
         });
+        // Reset failure count on success
+        this.failureCount = 0;
       } catch (traceError) {
         // Tracing failed, but don't break the tool execution
-        console.warn(`Failed to create trace for ${toolName}:`, traceError instanceof Error ? traceError.message : traceError);
+        this.handleTracingError(toolName, traceError);
       }
 
       return result;
@@ -80,24 +132,28 @@ export class TracingWrapper {
       const duration = endTime - startTime;
 
       // Log failed execution (non-blocking, swallow errors)
-      try {
-        await this.client.createRun({
-          id: runId,
-          name: toolName,
-          run_type: 'tool',
-          inputs: metadata || {},
-          start_time: startTime,
-          end_time: endTime,
-          project_name: this.projectName,
-          error: error instanceof Error ? error.message : String(error),
-          extra: {
-            duration_ms: duration,
-            success: false
-          }
-        });
-      } catch (traceError) {
-        // Tracing failed, but don't break the error propagation
-        console.warn(`Failed to create error trace for ${toolName}:`, traceError instanceof Error ? traceError.message : traceError);
+      if (!this.shouldSkipTracing()) {
+        try {
+          await this.client.createRun({
+            id: runId,
+            name: toolName,
+            run_type: 'tool',
+            inputs: metadata || {},
+            start_time: startTime,
+            end_time: endTime,
+            project_name: this.projectName,
+            error: error instanceof Error ? error.message : String(error),
+            extra: {
+              duration_ms: duration,
+              success: false
+            }
+          });
+          // Reset failure count on success
+          this.failureCount = 0;
+        } catch (traceError) {
+          // Tracing failed, but don't break the error propagation
+          this.handleTracingError(toolName, traceError);
+        }
       }
 
       throw error;
@@ -111,7 +167,7 @@ export class TracingWrapper {
     eventName: string,
     data: Record<string, any>
   ): Promise<void> {
-    if (!this.client) return;
+    if (!this.client || this.shouldSkipTracing()) return;
 
     const timestamp = Date.now();
 
@@ -125,8 +181,10 @@ export class TracingWrapper {
         end_time: timestamp,
         project_name: this.projectName
       });
+      // Reset failure count on success
+      this.failureCount = 0;
     } catch (error) {
-      console.error('Failed to log event:', error);
+      this.handleTracingError(eventName, error);
     }
   }
 }
