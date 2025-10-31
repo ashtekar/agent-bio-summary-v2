@@ -20,12 +20,17 @@ export class TracingWrapper {
     this.projectName = process.env.LANGCHAIN_PROJECT || 'agent-bio-summary-v2';
 
     if (apiKey && tracingEnabled) {
+      // Validate configuration
+      if (orgId && !workspaceId) {
+        console.warn('⚠️ [TRACING] LANGSMITH_WORKSPACE_ID is required for tracing operations. LANGCHAIN_ORG_ID is only for Hub prompt paths.');
+      }
+      
       try {
         this.client = new Client({
           apiKey,
-          // Use org ID for hub operations, workspace ID for tracing
-          ...(orgId && { workspaceId: orgId }),
-          ...(!orgId && workspaceId && { workspaceId })
+          // Always use workspace ID for tracing (never org ID)
+          // Org ID should only be used for Hub prompt paths, not Client initialization
+          ...(workspaceId && { workspaceId })
         });
       } catch (error) {
         console.warn('⚠️ Failed to initialize tracing client:', error);
@@ -65,7 +70,9 @@ export class TracingWrapper {
     if (is403Error) {
       if (this.failureCount === 1) {
         // Only log detailed message on first failure
-        console.warn(`⚠️ [TRACING] LangSmith tracing disabled: 403 Forbidden. Please check your LANGCHAIN_API_KEY and workspace permissions.`);
+        console.warn(`⚠️ [TRACING] LangSmith tracing disabled: 403 Forbidden.`);
+        console.warn(`   Please check your LANGCHAIN_API_KEY and LANGSMITH_WORKSPACE_ID.`);
+        console.warn(`   Note: LANGCHAIN_ORG_ID is only for Hub prompt paths, not for tracing operations.`);
       }
       // Disable tracing immediately for 403 errors to avoid spamming logs
       this.tracingDisabled = true;
