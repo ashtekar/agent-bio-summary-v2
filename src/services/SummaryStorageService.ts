@@ -239,7 +239,11 @@ export class SummaryStorageService {
   }
 
   /**
-   * Add human evaluation to a summary (for future use case 2)
+   * Add human evaluation to a summary (DEPRECATED - use EvaluationService instead)
+   * 
+   * @deprecated This method stores evaluations directly in article_summaries/daily_summaries
+   * which only supports one evaluation per summary. Use EvaluationService.saveEvaluation() 
+   * instead, which supports multiple graders per summary.
    */
   async addHumanEvaluation(
     summaryId: string,

@@ -4,6 +4,12 @@
 
 This document defines the database schema for storing human evaluations of article summaries. Multiple graders can evaluate the same summary, so evaluations are stored in a separate table.
 
+## Important: Schema Migration Note
+
+The `article_summaries` table already contains human evaluation columns (`human_overall_score`, `human_simple_terminology`, `human_clear_concept`, `human_clear_methodology`, `human_balanced_details`, `human_feedback`, `evaluated_by`, `evaluated_at`). These columns were designed for **single evaluations per summary**.
+
+Since we need to support **multiple graders per summary**, we created a separate `summary_evaluations` table. The old columns in `article_summaries` remain for backward compatibility but are **not used by the new grading system**. They may be deprecated in the future.
+
 ## Table: `summary_evaluations`
 
 Stores human evaluations of article summaries with 4 criteria (1-10 scale, normalized to 0-1).
@@ -93,8 +99,23 @@ article_summaries (id)
 
 ## Migration Steps
 
-1. Run the CREATE TABLE statement above in your Supabase SQL editor.
-2. Verify with: `SELECT * FROM summary_evaluations;`
+1. **No changes needed to `article_summaries` table** - The existing columns remain but are not used by the new system.
+
+2. **Create the new `summary_evaluations` table** - Run the CREATE TABLE statement above in your Supabase SQL editor.
+
+3. Verify with: `SELECT * FROM summary_evaluations;`
+
+## Schema Comparison
+
+### Old Approach (Single Evaluation)
+- Stored directly in `article_summaries` table
+- One evaluation per summary
+- Columns: `human_*` fields in `article_summaries`
+
+### New Approach (Multiple Evaluations)
+- Stored in separate `summary_evaluations` table
+- Multiple evaluations per summary (one per grader)
+- Allows tracking which specific grader provided each evaluation
 
 ## Row-Level Security (RLS)
 
