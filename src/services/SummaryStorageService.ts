@@ -127,14 +127,7 @@ export class SummaryStorageService {
         model_used: row.model_used,
         langsmith_run_id: row.langsmith_run_id,
         created_at: new Date(row.created_at),
-        human_overall_score: row.human_overall_score,
-        human_simple_terminology: row.human_simple_terminology,
-        human_clear_concept: row.human_clear_concept,
-        human_clear_methodology: row.human_clear_methodology,
-        human_balanced_details: row.human_balanced_details,
-        human_feedback: row.human_feedback,
-        evaluated_by: row.evaluated_by,
-        evaluated_at: row.evaluated_at ? new Date(row.evaluated_at) : undefined,
+        // Human evaluation fields removed - use EvaluationService instead
         // Add article metadata from join
         article_title: row.articles?.title,
         article_url: row.articles?.url,
@@ -178,14 +171,7 @@ export class SummaryStorageService {
         articles_summarized: data.articles_summarized,
         langsmith_run_id: data.langsmith_run_id,
         created_at: new Date(data.created_at),
-        human_overall_score: data.human_overall_score,
-        human_simple_terminology: data.human_simple_terminology,
-        human_clear_concept: data.human_clear_concept,
-        human_clear_methodology: data.human_clear_methodology,
-        human_balanced_details: data.human_balanced_details,
-        human_feedback: data.human_feedback,
-        evaluated_by: data.evaluated_by,
-        evaluated_at: data.evaluated_at ? new Date(data.evaluated_at) : undefined
+        // Human evaluation fields removed - use EvaluationService instead
       };
 
     } catch (error) {
@@ -222,14 +208,7 @@ export class SummaryStorageService {
         articles_summarized: row.articles_summarized,
         langsmith_run_id: row.langsmith_run_id,
         created_at: new Date(row.created_at),
-        human_overall_score: row.human_overall_score,
-        human_simple_terminology: row.human_simple_terminology,
-        human_clear_concept: row.human_clear_concept,
-        human_clear_methodology: row.human_clear_methodology,
-        human_balanced_details: row.human_balanced_details,
-        human_feedback: row.human_feedback,
-        evaluated_by: row.evaluated_by,
-        evaluated_at: row.evaluated_at ? new Date(row.evaluated_at) : undefined
+        // Human evaluation fields removed - use EvaluationService instead
       }));
 
     } catch (error) {
@@ -238,58 +217,9 @@ export class SummaryStorageService {
     }
   }
 
-  /**
-   * Add human evaluation to a summary (DEPRECATED - use EvaluationService instead)
-   * 
-   * @deprecated This method stores evaluations directly in article_summaries/daily_summaries
-   * which only supports one evaluation per summary. Use EvaluationService.saveEvaluation() 
-   * instead, which supports multiple graders per summary.
-   */
-  async addHumanEvaluation(
-    summaryId: string,
-    summaryType: 'article' | 'daily',
-    evaluation: {
-      overallScore: number;
-      simpleTerminology: number;
-      clearConcept: number;
-      clearMethodology: number;
-      balancedDetails: number;
-      feedback: string;
-      evaluatedBy: string;
-    }
-  ): Promise<void> {
-    try {
-      if (!this.supabase) {
-        throw new Error('Supabase client not initialized');
-      }
-
-      const tableName = summaryType === 'article' ? 'article_summaries' : 'daily_summaries';
-      
-      const { error } = await this.supabase
-        .from(tableName)
-        .update({
-          human_overall_score: evaluation.overallScore,
-          human_simple_terminology: evaluation.simpleTerminology,
-          human_clear_concept: evaluation.clearConcept,
-          human_clear_methodology: evaluation.clearMethodology,
-          human_balanced_details: evaluation.balancedDetails,
-          human_feedback: evaluation.feedback,
-          evaluated_by: evaluation.evaluatedBy,
-          evaluated_at: new Date().toISOString()
-        })
-        .eq('id', summaryId);
-
-      if (error) {
-        throw new Error(`Failed to add human evaluation: ${error.message}`);
-      }
-
-      console.log(`✅ Added human evaluation to ${summaryType} summary ${summaryId}`);
-
-    } catch (error) {
-      console.error('Error adding human evaluation:', error);
-      throw error;
-    }
-  }
+  // Removed addHumanEvaluation() - use EvaluationService.saveEvaluation() instead
+  // Old method supported only one evaluation per summary.
+  // New system supports multiple graders via summary_evaluations table.
 
   /**
    * Export human score to LangSmith (for future use case 3)

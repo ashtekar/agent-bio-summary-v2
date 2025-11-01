@@ -6,9 +6,11 @@ This document defines the database schema for storing human evaluations of artic
 
 ## Important: Schema Migration Note
 
-The `article_summaries` table already contains human evaluation columns (`human_overall_score`, `human_simple_terminology`, `human_clear_concept`, `human_clear_methodology`, `human_balanced_details`, `human_feedback`, `evaluated_by`, `evaluated_at`). These columns were designed for **single evaluations per summary**.
+~~The `article_summaries` table previously contained human evaluation columns, but these have been removed.~~ 
 
-Since we need to support **multiple graders per summary**, we created a separate `summary_evaluations` table. The old columns in `article_summaries` remain for backward compatibility but are **not used by the new grading system**. They may be deprecated in the future.
+These old columns were designed for **single evaluations per summary**, but we need to support **multiple graders per summary**. 
+
+**Recommendation**: Drop the old columns from `article_summaries` and `daily_summaries` tables (see `DROP-OLD-EVAL-COLUMNS.md` for migration steps). They are not used by the new grading system.
 
 ## Table: `summary_evaluations`
 

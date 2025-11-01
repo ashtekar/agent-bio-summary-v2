@@ -120,15 +120,7 @@ export interface ArticleSummaryRecord {
   model_used: string;
   langsmith_run_id: string;
   created_at: Date;
-  // Human evaluation fields (nullable, for future use case 2)
-  human_overall_score?: number;
-  human_simple_terminology?: number;
-  human_clear_concept?: number;
-  human_clear_methodology?: number;
-  human_balanced_details?: number;
-  human_feedback?: string;
-  evaluated_by?: string;
-  evaluated_at?: Date;
+  // Human evaluation fields removed - use EvaluationService to get evaluations from summary_evaluations table
   // Article metadata from JOIN (optional, populated when joined with articles table)
   article_title?: string;
   article_url?: string;
@@ -145,13 +137,5 @@ export interface DailySummaryRecord {
   articles_summarized: number;
   langsmith_run_id: string;
   created_at: Date;
-  // Human evaluation fields (nullable, for future use case 2)
-  human_overall_score?: number;
-  human_simple_terminology?: number;
-  human_clear_concept?: number;
-  human_clear_methodology?: number;
-  human_balanced_details?: number;
-  human_feedback?: string;
-  evaluated_by?: string;
-  evaluated_at?: Date;
+  // Human evaluation fields removed - use EvaluationService to get evaluations from summary_evaluations table
 }
