@@ -36,12 +36,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get the summary details
-    const { summaryStorageService } = await import('@/services/SummaryStorageService');
-    
-    // We need to get the summary from article_summaries
-    // First, get all article summaries to find which one matches
-    // For now, we'll return the summaryId and let the frontend fetch the summary
+    // Return the summaryId and let the frontend fetch the summary details
     return NextResponse.json({
       success: true,
       data: {

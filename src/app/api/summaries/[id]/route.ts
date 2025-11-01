@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { summaryStorageService } from '@/services/SummaryStorageService';
+import { createClient } from '@supabase/supabase-js';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,7 @@ export async function GET(
     }
 
     // We need to query article_summaries table directly
-    // Since summaryStorageService doesn't have a getById method, we'll need to add it
-    // For now, we'll use Supabase directly here
-    
-    const { createClient } = await import('@supabase/supabase-js');
+    // Since summaryStorageService doesn't have a getById method, we'll use Supabase directly here
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
