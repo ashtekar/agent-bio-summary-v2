@@ -6,6 +6,7 @@ import Link from 'next/link';
 const navItems = [
   { id: 'dashboard', label: '📊Dashboard', href: '/dashboard' },
   { id: 'summaries', label: '📝Daily Summaries', href: '/summaries' },
+  { id: 'evaluations', label: '⭐Evaluations', href: '/evaluations' },
   { id: 'settings', label: '⚙️Settings', href: '/settings' },
 ];
 
