@@ -42,7 +42,13 @@ export async function GET(
     const { data, error } = await supabase
       .from('article_summaries')
       .select(`
-        *,
+        id,
+        article_id,
+        thread_id,
+        summary,
+        model_used,
+        langsmith_run_id,
+        created_at,
         articles:article_id (
           id,
           title,

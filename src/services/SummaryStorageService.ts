@@ -103,7 +103,13 @@ export class SummaryStorageService {
       const { data, error } = await this.supabase
         .from('article_summaries')
         .select(`
-          *,
+          id,
+          article_id,
+          thread_id,
+          summary,
+          model_used,
+          langsmith_run_id,
+          created_at,
           articles:article_id (
             id,
             title,
@@ -152,7 +158,16 @@ export class SummaryStorageService {
 
       const { data, error } = await this.supabase
         .from('daily_summaries')
-        .select('*')
+        .select(`
+          id,
+          thread_id,
+          collated_summary,
+          html_content,
+          collation_model,
+          articles_summarized,
+          langsmith_run_id,
+          created_at
+        `)
         .eq('thread_id', threadId)
         .maybeSingle();
 
@@ -191,7 +206,16 @@ export class SummaryStorageService {
 
       const { data, error } = await this.supabase
         .from('daily_summaries')
-        .select('*')
+        .select(`
+          id,
+          thread_id,
+          collated_summary,
+          html_content,
+          collation_model,
+          articles_summarized,
+          langsmith_run_id,
+          created_at
+        `)
         .order('created_at', { ascending: false })
         .limit(limit);
 
