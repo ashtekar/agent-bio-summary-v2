@@ -70,6 +70,10 @@ export async function GET(
       }, { status: 404 });
     }
 
+    // Handle joined data - Supabase returns arrays for foreign keys even when using maybeSingle
+    const article = Array.isArray(data.articles) && data.articles.length > 0 ? data.articles[0] : (!Array.isArray(data.articles) ? data.articles : null);
+    const thread = Array.isArray(data.threads) && data.threads.length > 0 ? data.threads[0] : (!Array.isArray(data.threads) ? data.threads : null);
+
     return NextResponse.json({
       success: true,
       data: {
@@ -79,13 +83,13 @@ export async function GET(
         thread_id: data.thread_id,
         model_used: data.model_used,
         created_at: data.created_at,
-        article: data.articles ? {
-          title: data.articles.title,
-          url: data.articles.url,
-          source: data.articles.source
+        article: article ? {
+          title: article.title,
+          url: article.url,
+          source: article.source
         } : null,
-        thread: data.threads ? {
-          run_date: data.threads.run_date
+        thread: thread ? {
+          run_date: thread.run_date
         } : null
       }
     });

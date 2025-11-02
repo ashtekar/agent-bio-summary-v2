@@ -125,21 +125,26 @@ export class SummaryStorageService {
         throw new Error(`Failed to fetch article summaries: ${error.message}`);
       }
 
-      return (data || []).map(row => ({
-        id: row.id,
-        article_id: row.article_id,
-        thread_id: row.thread_id,
-        summary: row.summary,
-        model_used: row.model_used,
-        langsmith_run_id: row.langsmith_run_id,
-        created_at: new Date(row.created_at),
-        // Human evaluation fields removed - use EvaluationService instead
-        // Add article metadata from join
-        article_title: row.articles?.title,
-        article_url: row.articles?.url,
-        article_source: row.articles?.source,
-        article_relevancy_score: row.articles?.relevancy_score
-      }));
+      return (data || []).map(row => {
+        // Handle joined data - Supabase returns arrays for foreign keys
+        const article = Array.isArray(row.articles) && row.articles.length > 0 ? row.articles[0] : (!Array.isArray(row.articles) ? row.articles : null);
+        
+        return {
+          id: row.id,
+          article_id: row.article_id,
+          thread_id: row.thread_id,
+          summary: row.summary,
+          model_used: row.model_used,
+          langsmith_run_id: row.langsmith_run_id,
+          created_at: new Date(row.created_at),
+          // Human evaluation fields removed - use EvaluationService instead
+          // Add article metadata from join
+          article_title: article?.title,
+          article_url: article?.url,
+          article_source: article?.source,
+          article_relevancy_score: article?.relevancy_score
+        };
+      });
 
     } catch (error) {
       console.error('Error fetching article summaries:', error);

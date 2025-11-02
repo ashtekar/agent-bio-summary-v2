@@ -120,33 +120,33 @@ export default function EvaluationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {evaluations.map((eval) => (
+                  {evaluations.map((evaluation) => (
                     <tr
-                      key={eval.id}
+                      key={evaluation.id}
                       className="border-b border-slate-700 hover:bg-slate-800 transition-colors"
                     >
                       <td className="py-3 px-4">
                         <div className="text-white">
-                          {eval.grader_name || eval.grader_email}
+                          {evaluation.grader_name || evaluation.grader_email}
                         </div>
-                        {eval.grader_name && (
-                          <div className="text-slate-400 text-xs">{eval.grader_email}</div>
+                        {evaluation.grader_name && (
+                          <div className="text-slate-400 text-xs">{evaluation.grader_email}</div>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-slate-300">{formatScore(eval.simple_terminology)}</td>
-                      <td className="py-3 px-4 text-slate-300">{formatScore(eval.clear_concept)}</td>
-                      <td className="py-3 px-4 text-slate-300">{formatScore(eval.clear_methodology)}</td>
-                      <td className="py-3 px-4 text-slate-300">{formatScore(eval.balanced_details)}</td>
+                      <td className="py-3 px-4 text-slate-300">{formatScore(evaluation.simple_terminology)}</td>
+                      <td className="py-3 px-4 text-slate-300">{formatScore(evaluation.clear_concept)}</td>
+                      <td className="py-3 px-4 text-slate-300">{formatScore(evaluation.clear_methodology)}</td>
+                      <td className="py-3 px-4 text-slate-300">{formatScore(evaluation.balanced_details)}</td>
                       <td className="py-3 px-4">
                         <button
-                          onClick={() => openSummaryModal(eval)}
+                          onClick={() => openSummaryModal(evaluation)}
                           className="text-blue-400 hover:text-blue-300 text-sm font-medium underline"
                         >
-                          {eval.summary_id.substring(0, 8)}...
+                          {evaluation.summary_id.substring(0, 8)}...
                         </button>
                       </td>
                       <td className="py-3 px-4 text-slate-400 text-sm">
-                        {new Date(eval.created_at).toLocaleDateString()}
+                        {new Date(evaluation.created_at).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}
