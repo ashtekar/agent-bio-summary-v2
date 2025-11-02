@@ -61,13 +61,13 @@ export class EmailTools {
 
         console.log(`✅ Valid recipients: ${params.recipients.map(r => r.email).join(', ')}`);
 
-        const emailHtml = this.generateEmailHtml(params.summary, params.metadata);
         const emailSubject = this.generateEmailSubject(params.metadata);
         
-        // Send to all recipients
-        const emailPromises = params.recipients.map(recipient => 
-          this.sendToRecipient(recipient, emailSubject, emailHtml)
-        );
+        // Send to all recipients (generate HTML per recipient to include personalized links)
+        const emailPromises = params.recipients.map(recipient => {
+          const emailHtml = this.generateEmailHtml(params.summary, params.metadata, recipient);
+          return this.sendToRecipient(recipient, emailSubject, emailHtml);
+        });
 
         const results = await Promise.allSettled(emailPromises);
         
@@ -161,7 +161,7 @@ export class EmailTools {
   /**
    * Generate HTML email content
    */
-  private generateEmailHtml(summary: string, metadata: { sessionId: string; articlesCount: number; executionTime: number }): string {
+  private generateEmailHtml(summary: string, metadata: { sessionId: string; articlesCount: number; executionTime: number }, recipient?: EmailRecipient): string {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const currentDate = new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -376,7 +376,7 @@ export class EmailTools {
         <div class="feedback-section">
             <h3>📝 Help Us Improve</h3>
             <p>Your feedback helps us create better summaries. Please take a moment to rate this summary:</p>
-            <a href="${baseUrl}/feedback?session=${metadata.sessionId}" class="feedback-button">
+            <a href="${baseUrl}/grading?email=${encodeURIComponent(recipient?.email || '')}${recipient?.name ? '&name=' + encodeURIComponent(recipient.name) : ''}" class="feedback-button">
                 Rate This Summary
             </a>
             <a href="${baseUrl}/settings" class="feedback-button" style="background-color: #95a5a6;">
@@ -392,7 +392,7 @@ export class EmailTools {
                 Generation Time: ${Math.round(metadata.executionTime / 1000)}s
             </div>
             <p style="margin-top: 15px;">
-                <a href="${baseUrl}/unsubscribe?email={{recipient_email}}">Unsubscribe</a> | 
+                <a href="${baseUrl}/unsubscribe?email=${encodeURIComponent(recipient?.email || '')}">Unsubscribe</a> | 
                 <a href="${baseUrl}/privacy">Privacy Policy</a>
             </p>
         </div>
