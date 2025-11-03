@@ -118,6 +118,21 @@ export default function Dashboard() {
     }
   }
 
+  async function gradeNow() {
+    const email = prompt('Enter your email address to grade summaries:');
+    if (!email) {
+      return; // User cancelled
+    }
+
+    try {
+      // Navigate to grading page with email
+      router.push(`/grading?email=${encodeURIComponent(email)}`);
+    } catch (error) {
+      console.error('Error navigating to grading page:', error);
+      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900">
@@ -162,13 +177,21 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <Card className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
-          <button
-            onClick={runNow}
-            disabled={running}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
-          >
-            {running ? 'Running...' : 'Run Now'}
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={runNow}
+              disabled={running}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {running ? 'Running...' : 'Run Now'}
+            </button>
+            <button
+              onClick={gradeNow}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              ⭐ Grade Now
+            </button>
+          </div>
         </Card>
 
         {/* Recent Summaries */}
