@@ -227,7 +227,7 @@ export default function GradingPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Rubric */}
         <div className="bg-slate-800 rounded-lg p-6 mb-6 border border-slate-700">
-          <h2 className="text-xl font-bold text-white mb-4">?? Grading Rubric</h2>
+          <h2 className="text-xl font-bold text-white mb-4">📋 Grading Rubric</h2>
           <div className="space-y-2 text-sm text-slate-300">
             <p><strong className="text-white">1. Simple terminology:</strong> Does the summary have terminology that might be hard to understand?</p>
             <p><strong className="text-white">2. Clear concept explanation:</strong> Does the summary explain the concept behind the article such that it's easy to understand?</p>
@@ -324,7 +324,7 @@ export default function GradingPage() {
                 {feedback.trim().split(/\s+/).filter(word => word.length > 0).length} / 50 words
               </span>
               {feedback.trim().split(/\s+/).filter(word => word.length > 0).length > 50 && (
-                <span className="text-red-400 text-sm">?? Please limit to 50 words</span>
+                <span className="text-red-400 text-sm">⚠️ Please limit to 50 words</span>
               )}
             </div>
           </div>
