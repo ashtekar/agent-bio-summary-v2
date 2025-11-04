@@ -18,14 +18,20 @@ export class ThreadService {
 
   /**
    * Create a new thread for a daily summary run
+   * @param params - Thread creation parameters
+   * @param userId - User ID (required for user-specific threads)
    */
   async createThread(params: {
     run_date: string;
     metadata?: Thread['metadata'];
-  }): Promise<Thread> {
+  }, userId?: string): Promise<Thread> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
+      }
+
+      if (!userId) {
+        throw new Error('User ID is required to create thread');
       }
 
       const threadId = randomUUID();
@@ -34,6 +40,7 @@ export class ThreadService {
       const threadData = {
         id: threadId,
         run_date: params.run_date,
+        user_id: userId,
         status: 'running' as const,
         articles_found: 0,
         articles_processed: 0,
@@ -77,24 +84,31 @@ export class ThreadService {
   /**
    * Get or create a thread for a daily summary run
    * This method handles race conditions atomically using PostgreSQL INSERT ... ON CONFLICT
+   * @param params - Thread creation parameters
+   * @param userId - User ID (required for user-specific threads)
    */
   async getOrCreateThread(params: {
     run_date: string;
     metadata?: Thread['metadata'];
-  }): Promise<Thread> {
+  }, userId?: string): Promise<Thread> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
+      }
+
+      if (!userId) {
+        throw new Error('User ID is required to get or create thread');
       }
 
       const threadId = randomUUID();
       const now = new Date();
 
       // Use PostgreSQL INSERT ... ON CONFLICT to atomically handle race conditions
-      // This ensures only one thread is created per run_date even with concurrent requests
+      // This ensures only one thread is created per (user_id, run_date) even with concurrent requests
       const threadData = {
         id: threadId,
         run_date: params.run_date,
+        user_id: userId,
         status: 'running' as const,
         articles_found: 0,
         articles_processed: 0,
@@ -263,19 +277,27 @@ export class ThreadService {
   }
 
   /**
-   * Get a thread by ID
+   * Get thread by ID
+   * @param threadId - Thread ID
+   * @param userId - Optional user ID to verify ownership
    */
-  async getThread(threadId: string): Promise<Thread | null> {
+  async getThread(threadId: string, userId?: string): Promise<Thread | null> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('threads')
         .select('*')
-        .eq('id', threadId)
-        .maybeSingle();
+        .eq('id', threadId);
+
+      // Filter by user_id if provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         throw new Error(`Failed to fetch thread: ${error.message}`);
@@ -305,18 +327,27 @@ export class ThreadService {
 
   /**
    * Get recent threads (for frontend display)
+   * @param limit - Maximum number of threads to return
+   * @param userId - Optional user ID to filter by user
    */
-  async getRecentThreads(limit: number = 10): Promise<Thread[]> {
+  async getRecentThreads(limit: number = 10, userId?: string): Promise<Thread[]> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      const { data, error } = await this.supabase
+      if (!userId) {
+        throw new Error('User ID is required to get recent threads');
+      }
+
+      let query = this.supabase
         .from('threads')
         .select('*')
+        .eq('user_id', userId)
         .order('started_at', { ascending: false })
         .limit(limit);
+
+      const { data, error } = await query;
 
       if (error) {
         throw new Error(`Failed to fetch threads: ${error.message}`);
@@ -344,17 +375,24 @@ export class ThreadService {
 
   /**
    * Get thread by run date
+   * @param runDate - Run date (YYYY-MM-DD)
+   * @param userId - User ID (required for user-specific threads)
    */
-  async getThreadByDate(runDate: string): Promise<Thread | null> {
+  async getThreadByDate(runDate: string, userId?: string): Promise<Thread | null> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
+      }
+
+      if (!userId) {
+        throw new Error('User ID is required to get thread by date');
       }
 
       const { data, error } = await this.supabase
         .from('threads')
         .select('*')
         .eq('run_date', runDate)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (error) {

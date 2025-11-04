@@ -1,21 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { threadService } from '@/services/ThreadService';
+import { requireAuth } from '@/middleware/auth';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/threads - Get thread history
+ * Requires authentication
  */
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication
+    const authResult = await requireAuth(request);
+
+    if (!authResult.authorized || !authResult.userId) {
+      return authResult.response || NextResponse.json({
+        success: false,
+        error: 'Unauthorized'
+      }, { status: 401 });
+    }
+
+    const userId = authResult.userId;
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10');
     const runDate = searchParams.get('run_date');
 
     // Get specific thread by date
     if (runDate) {
-      const thread = await threadService.getThreadByDate(runDate);
+      const thread = await threadService.getThreadByDate(runDate, userId);
       
       if (!thread) {
         return NextResponse.json({
@@ -30,8 +43,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get recent threads
-    const threads = await threadService.getRecentThreads(limit);
+    // Get recent threads for user
+    const threads = await threadService.getRecentThreads(limit, userId);
 
     return NextResponse.json({
       success: true,

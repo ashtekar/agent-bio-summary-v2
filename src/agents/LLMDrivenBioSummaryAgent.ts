@@ -36,6 +36,7 @@ export class LLMDrivenBioSummaryAgent {
     const threadId = initialContext.threadId || randomUUID();
     
     this.context = {
+      userId: initialContext.userId || 'unknown', // Ensure userId is set
       sessionId: this.generateSessionId(),
       threadId: threadId, // Always use valid UUID format
       startTime: new Date(),
@@ -68,9 +69,9 @@ export class LLMDrivenBioSummaryAgent {
     try {
       console.log(`Starting LLM-driven BioSummaryAgent execution - Session: ${this.context.sessionId}`);
       
-      // Set session ID and tool state for consistency with LangChain agent tools
-      setToolSessionId(this.context.sessionId);
-      toolStateManager.updateState(this.context.sessionId, {
+      // Set session ID and user ID for tools to access shared state
+      setToolSessionId(this.context.sessionId, this.context.userId);
+      toolStateManager.updateState(this.context.sessionId, this.context.userId, {
         context: {
           recipients: this.context.recipients,
           searchSettings: this.context.searchSettings,
@@ -100,9 +101,9 @@ export class LLMDrivenBioSummaryAgent {
 
       // Store parentRunId in tool state for tools to access
       if (this.parentRunId) {
-        toolStateManager.updateState(this.context.sessionId, {
+        toolStateManager.updateState(this.context.sessionId, this.context.userId, {
           context: {
-            ...toolStateManager.getState(this.context.sessionId)?.context,
+            ...toolStateManager.getState(this.context.sessionId, this.context.userId)?.context,
             parentRunId: this.parentRunId
           }
         });

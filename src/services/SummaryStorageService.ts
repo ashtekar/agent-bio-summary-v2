@@ -17,6 +17,8 @@ export class SummaryStorageService {
 
   /**
    * Save individual article summary
+   * @param data - Summary data
+   * @param userId - User ID (required for user-specific summaries)
    */
   async saveArticleSummary(data: {
     articleId: string;
@@ -24,10 +26,14 @@ export class SummaryStorageService {
     summary: string;
     modelUsed: string;
     langsmithRunId: string;
-  }): Promise<void> {
+  }, userId?: string): Promise<void> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
+      }
+
+      if (!userId) {
+        throw new Error('User ID is required to save article summary');
       }
 
       const { error } = await this.supabase
@@ -35,6 +41,7 @@ export class SummaryStorageService {
         .insert({
           article_id: data.articleId,
           thread_id: data.threadId,
+          user_id: userId,
           summary: data.summary,
           model_used: data.modelUsed,
           langsmith_run_id: data.langsmithRunId
@@ -93,14 +100,16 @@ export class SummaryStorageService {
 
   /**
    * Get article summaries for a specific thread
+   * @param threadId - Thread ID
+   * @param userId - Optional user ID to verify ownership
    */
-  async getArticleSummariesByThread(threadId: string): Promise<ArticleSummaryRecord[]> {
+  async getArticleSummariesByThread(threadId: string, userId?: string): Promise<ArticleSummaryRecord[]> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('article_summaries')
         .select(`
           id,
@@ -118,8 +127,14 @@ export class SummaryStorageService {
             relevancy_score
           )
         `)
-        .eq('thread_id', threadId)
-        .order('created_at', { ascending: true });
+        .eq('thread_id', threadId);
+
+      // Filter by user_id if provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: true });
 
       if (error) {
         throw new Error(`Failed to fetch article summaries: ${error.message}`);

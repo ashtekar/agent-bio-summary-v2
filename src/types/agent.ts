@@ -1,4 +1,7 @@
 export interface AgentContext {
+  // User context
+  userId: string;  // User ID for isolation
+  
   // Database context
   searchSettings: SearchSettings;
   systemSettings: SystemSettings;

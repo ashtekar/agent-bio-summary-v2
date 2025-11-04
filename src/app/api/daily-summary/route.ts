@@ -5,6 +5,7 @@ import { LangChainBioSummaryAgent } from '@/agents/LangChainBioSummaryAgent';
 import { SearchSettings, SystemSettings, EmailRecipient } from '@/types/agent';
 import { settingsService } from '@/services/SettingsService';
 import { threadService } from '@/services/ThreadService';
+import { requireAdmin } from '@/middleware/auth';
 import { randomUUID } from 'crypto';
 
 export async function POST(request: NextRequest) {
@@ -12,6 +13,17 @@ export async function POST(request: NextRequest) {
   let threadId = null;
   
   try {
+    // Require admin authentication
+    const adminResult = await requireAdmin(request);
+
+    if (!adminResult.authorized || !adminResult.userId || !adminResult.isAdmin) {
+      return adminResult.response || NextResponse.json({
+        success: false,
+        error: 'Forbidden: Admin access required'
+      }, { status: 403 });
+    }
+
+    const userId = adminResult.userId;
     const body = await request.json();
     
     // Feature flag: Use LangChain agent or legacy OpenAI SDK agent
@@ -20,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Try to get settings from Supabase, fallback to defaults
     let context;
     try {
-      const supabaseSettings = await settingsService.getAllSettings();
+      const supabaseSettings = await settingsService.getAllSettings(userId);
       context = { ...supabaseSettings, ...body };
       console.log('🔍 [API-ROUTE] Using settings from Supabase:', {
         model: context.systemSettings.llmModel,
@@ -84,7 +96,7 @@ export async function POST(request: NextRequest) {
           sources: context.searchSettings.sources,
           recipients: context.recipients.map((r: { email: string }) => r.email)
         }
-      });
+      }, userId);
       
       threadId = thread.id;
       
@@ -96,6 +108,7 @@ export async function POST(request: NextRequest) {
       }
       
       context.threadId = threadId;
+      context.userId = userId;
       
       console.log(`✅ Using thread: ${threadId} for daily summary ${runDate}`);
     } catch (threadError) {
@@ -103,6 +116,7 @@ export async function POST(request: NextRequest) {
       // Generate valid UUID as fallback to ensure agent always has valid threadId
       threadId = randomUUID();
       context.threadId = threadId;
+      context.userId = userId;
       console.log(`✅ Using fallback thread: ${threadId} for daily summary ${runDate}`);
     }
 

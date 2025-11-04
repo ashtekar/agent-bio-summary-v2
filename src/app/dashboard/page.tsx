@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
 import Card from '@/components/Card';
+import { AuthGuard } from '@/components/AuthGuard';
+import { AdminGuard } from '@/components/AdminGuard';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DashboardStats {
   lastRun: string;
@@ -22,6 +25,7 @@ interface RecentSummary {
 
 export default function Dashboard() {
   const router = useRouter();
+  const { isAdmin } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentSummaries, setRecentSummaries] = useState<RecentSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,64 +139,79 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900">
-        <Header />
-        <Navigation />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center text-slate-400">Loading...</div>
-        </main>
-      </div>
+      <AuthGuard>
+        <div className="min-h-screen bg-slate-900">
+          <Header />
+          <Navigation />
+          <main className="max-w-7xl mx-auto px-6 py-8">
+            <div className="text-center text-slate-400">Loading...</div>
+          </main>
+        </div>
+      </AuthGuard>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <Header />
-      <Navigation />
-      
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* System Status */}
-        <Card className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">System Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-              <div className="text-slate-400 text-sm mb-1">Last Run</div>
-              <div className="text-white text-xl font-semibold">{stats?.lastRun}</div>
+    <AuthGuard>
+      <div className="min-h-screen bg-slate-900">
+        <Header />
+        <Navigation />
+        
+        <main className="max-w-7xl mx-auto px-6 py-8">
+          {/* System Status */}
+          <Card className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">System Status</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <div className="text-slate-400 text-sm mb-1">Last Run</div>
+                <div className="text-white text-xl font-semibold">{stats?.lastRun}</div>
+              </div>
+              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <div className="text-slate-400 text-sm mb-1">Articles Found</div>
+                <div className="text-green-400 text-xl font-semibold">{stats?.articlesFound}</div>
+              </div>
+              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <div className="text-slate-400 text-sm mb-1">Summaries Generated</div>
+                <div className="text-blue-400 text-xl font-semibold">{stats?.summariesGenerated}</div>
+              </div>
+              <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
+                <div className="text-slate-400 text-sm mb-1">Next Scheduled Run</div>
+                <div className="text-orange-400 text-xl font-semibold text-sm">{stats?.nextScheduledRun}</div>
+              </div>
             </div>
-            <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-              <div className="text-slate-400 text-sm mb-1">Articles Found</div>
-              <div className="text-green-400 text-xl font-semibold">{stats?.articlesFound}</div>
-            </div>
-            <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-              <div className="text-slate-400 text-sm mb-1">Summaries Generated</div>
-              <div className="text-blue-400 text-xl font-semibold">{stats?.summariesGenerated}</div>
-            </div>
-            <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-              <div className="text-slate-400 text-sm mb-1">Next Scheduled Run</div>
-              <div className="text-orange-400 text-xl font-semibold text-sm">{stats?.nextScheduledRun}</div>
-            </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Quick Actions */}
-        <Card className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
-          <div className="flex gap-4">
-            <button
-              onClick={runNow}
-              disabled={running}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
-            >
-              {running ? 'Running...' : 'Run Now'}
-            </button>
-            <button
-              onClick={gradeNow}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              ⭐ Grade Now
-            </button>
-          </div>
-        </Card>
+          {/* Quick Actions */}
+          <Card className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
+            <div className="flex gap-4">
+              <AdminGuard
+                fallback={
+                  <button
+                    disabled
+                    className="bg-slate-700 text-slate-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
+                    title="Admin access required"
+                  >
+                    Run Now (Admin Only)
+                  </button>
+                }
+              >
+                <button
+                  onClick={runNow}
+                  disabled={running}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+                >
+                  {running ? 'Running...' : 'Run Now'}
+                </button>
+              </AdminGuard>
+              <button
+                onClick={gradeNow}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                ⭐ Grade Now
+              </button>
+            </div>
+          </Card>
 
         {/* Recent Summaries */}
         <Card>
@@ -224,6 +243,7 @@ export default function Dashboard() {
         </Card>
       </main>
     </div>
+    </AuthGuard>
   );
 }
 

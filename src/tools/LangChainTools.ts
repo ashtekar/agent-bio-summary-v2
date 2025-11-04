@@ -23,12 +23,16 @@ const summaryTools = new SummaryTools({
 });
 const emailTools = new EmailTools();
 
-// Session ID for the current execution (will be set by agent)
+// Session ID and User ID for the current execution (will be set by agent)
 let currentSessionId: string | null = null;
+let currentUserId: string | null = null;
 
-export function setToolSessionId(sessionId: string) {
-  console.log(`[SESSION] Set: ${currentSessionId} -> ${sessionId}`);
+export function setToolSessionId(sessionId: string, userId?: string) {
+  console.log(`[SESSION] Set: ${currentSessionId} -> ${sessionId} (userId: ${userId || 'none'})`);
   currentSessionId = sessionId;
+  if (userId) {
+    currentUserId = userId;
+  }
 }
 
 export function getToolSessionId(): string {
@@ -37,6 +41,14 @@ export function getToolSessionId(): string {
     console.log(`[SESSION] Created: ${currentSessionId}`);
   }
   return currentSessionId;
+}
+
+export function getToolUserId(): string {
+  if (!currentUserId) {
+    console.warn('[SESSION] No userId set, using "unknown"');
+    return 'unknown';
+  }
+  return currentUserId;
 }
 
 /**
@@ -54,7 +66,8 @@ export const searchWebTool = new DynamicStructuredTool({
   }),
   func: async (input) => {
     const sessionId = getToolSessionId();
-    console.log(`[SEARCH-WEB] Session: ${sessionId}`);
+    const userId = getToolUserId();
+    console.log(`[SEARCH-WEB] Session: ${sessionId}, User: ${userId}`);
     
     const searchSettings: SearchSettings = {
       query: input.query,
@@ -66,7 +79,7 @@ export const searchWebTool = new DynamicStructuredTool({
     const result = await searchTools.searchWeb(searchSettings);
     
     if (result.success && result.data) {
-      toolStateManager.updateState(sessionId, { 
+      toolStateManager.updateState(sessionId, userId, { 
         searchResults: result.data,
         metadata: {
           query: input.query,
@@ -99,10 +112,11 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
   schema: z.object({}),  // No parameters - tool is self-sufficient
   func: async () => {
     const sessionId = getToolSessionId();
-    console.log(`[EXTRACT-SCORE-STORE] Session: ${sessionId}`);
+    const userId = getToolUserId();
+    console.log(`[EXTRACT-SCORE-STORE] Session: ${sessionId}, User: ${userId}`);
     
     // Read search results from state
-    const state = toolStateManager.getState(sessionId);
+    const state = toolStateManager.getState(sessionId, userId);
     
     // Tool pulls relevancy threshold from context (user preferences)
     const relevancyThreshold = state.context?.systemSettings?.relevancyThreshold ?? 0.2;
@@ -113,18 +127,23 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     if (!state.searchResults || state.searchResults.length === 0) {
       console.log(`[EXTRACT-SCORE-STORE] No results in session ${sessionId}, searching all sessions...`);
       
-      // Try to find search results in any available session
+      // Try to find search results in any available session for this user
+      // Note: This searches across all sessions, but state is isolated per user via userId
       const allSessions = toolStateManager.getSessions();
       
       for (const sessionWithData of allSessions) {
-        const sessionState = toolStateManager.getState(sessionWithData);
+        // Extract sessionId from key format "userId:sessionId"
+        const sessionIdMatch = sessionWithData.match(/^[^:]+:(.+)$/);
+        if (!sessionIdMatch) continue;
+        const extractedSessionId = sessionIdMatch[1];
+        const sessionState = toolStateManager.getState(extractedSessionId, userId);
         
         if (sessionState.searchResults && sessionState.searchResults.length > 0) {
           console.log(`[EXTRACT-SCORE-STORE] Found ${sessionState.searchResults.length} results in session ${sessionWithData}`);
           console.log(`[EXTRACT-SCORE-STORE] Updating session: ${sessionId} -> ${sessionWithData}`);
           
           // Update the current session to point to the one with data
-          setToolSessionId(sessionWithData);
+          setToolSessionId(extractedSessionId, userId);
           
           // Use threshold from this session's context
           const sessionThreshold = sessionState.context?.systemSettings?.relevancyThreshold ?? 0.2;
@@ -173,7 +192,7 @@ export const extractScoreAndStoreArticlesTool = new DynamicStructuredTool({
     
     // Store processed articles in state
     if (result.success && result.data) {
-      toolStateManager.updateState(sessionId, {
+      toolStateManager.updateState(sessionId, userId, {
         extractedArticles: result.data,
         scoredArticles: result.data,
         storedArticles: result.data
@@ -226,7 +245,8 @@ export const scoreRelevancyTool = new DynamicStructuredTool({
   func: async (input) => {
     // Get user keywords from state metadata
     const sessionId = getToolSessionId();
-    const state = toolStateManager.getState(sessionId);
+    const userId = getToolUserId();
+    const state = toolStateManager.getState(sessionId, userId);
     const userKeywords = state.metadata?.query ? 
       state.metadata.query.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0) : 
       [];
@@ -274,7 +294,8 @@ export const summarizeArticleTool = new DynamicStructuredTool({
   }),
   func: async (input) => {
     const sessionId = getToolSessionId();
-    const state = toolStateManager.getState(sessionId);
+    const userId = getToolUserId();
+    const state = toolStateManager.getState(sessionId, userId);
     
     // Read stored articles from state
     const storedArticles = state.storedArticles || state.extractedArticles || state.scoredArticles;
@@ -315,7 +336,7 @@ export const summarizeArticleTool = new DynamicStructuredTool({
     
     // Store all summaries in state for collateSummary
     if (allSummaries.length > 0) {
-      toolStateManager.updateState(sessionId, {
+      toolStateManager.updateState(sessionId, userId, {
         summaries: allSummaries
       });
     }
@@ -343,7 +364,8 @@ export const collateSummaryTool = new DynamicStructuredTool({
   }),
   func: async (input) => {
     const sessionId = getToolSessionId();
-    const state = toolStateManager.getState(sessionId);
+    const userId = getToolUserId();
+    const state = toolStateManager.getState(sessionId, userId);
     
     // Read summaries from state
     const summaries = state.summaries;
@@ -361,7 +383,7 @@ export const collateSummaryTool = new DynamicStructuredTool({
     
     // Store collated summary in state for sendEmail
     if (result.success && result.data) {
-      toolStateManager.updateState(sessionId, {
+      toolStateManager.updateState(sessionId, userId, {
         collatedSummary: result.data
       });
     }
@@ -397,11 +419,12 @@ export const sendEmailTool = new DynamicStructuredTool({
   }),
   func: async (input) => {
     const sessionId = getToolSessionId();
+    const userId = getToolUserId();
     console.log('🔍 [SEND-EMAIL-TOOL] Session ID:', sessionId);
     console.log('🔍 [SEND-EMAIL-TOOL] Input recipients received:', JSON.stringify(input.recipients || [], null, 2));
     
     // ALWAYS USE CONTEXT RECIPIENTS (ignore GPT-5's hallucinated recipients)
-    const state = toolStateManager.getState(sessionId);
+    const state = toolStateManager.getState(sessionId, userId);
     console.log('🔍 [SEND-EMAIL-TOOL] ToolState context:', JSON.stringify(state.context, null, 2));
     
     let recipients: EmailRecipient[] = [];

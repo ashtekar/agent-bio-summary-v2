@@ -33,6 +33,7 @@ export class LangChainBioSummaryAgent {
     const threadId = initialContext.threadId || randomUUID();
     
     this.context = {
+      userId: initialContext.userId || 'unknown', // Ensure userId is set
       searchSettings: initialContext.searchSettings!,
       systemSettings: initialContext.systemSettings!,
       recipients: initialContext.recipients!,
@@ -97,11 +98,11 @@ export class LangChainBioSummaryAgent {
     try {
       console.log(`Starting LangChain agent execution - Session: ${this.context.sessionId}`);
       
-      // Set session ID for tools to access shared state
-      setToolSessionId(this.context.sessionId);
+      // Set session ID and user ID for tools to access shared state
+      setToolSessionId(this.context.sessionId, this.context.userId);
       
       // Store context in toolState so tools can access recipients and threadId
-      toolStateManager.updateState(this.context.sessionId, {
+      toolStateManager.updateState(this.context.sessionId, this.context.userId, {
         context: {
           recipients: this.context.recipients,
           searchSettings: this.context.searchSettings,
@@ -126,9 +127,9 @@ export class LangChainBioSummaryAgent {
 
       // Store parentRunId in tool state for tools to access
       if (this.parentRunId) {
-        toolStateManager.updateState(this.context.sessionId, {
+        toolStateManager.updateState(this.context.sessionId, this.context.userId, {
           context: {
-            ...toolStateManager.getState(this.context.sessionId)?.context,
+            ...toolStateManager.getState(this.context.sessionId, this.context.userId)?.context,
             parentRunId: this.parentRunId
           }
         });
@@ -233,7 +234,7 @@ Use the available tools in the proper sequence to complete the task.`;
       }
 
       // Clean up tool state
-      toolStateManager.clearState(this.context.sessionId);
+      toolStateManager.clearState(this.context.sessionId, this.context.userId);
 
       // Process and return result
       return this.processAgentResult(result);
@@ -250,7 +251,7 @@ Use the available tools in the proper sequence to complete the task.`;
       }
 
       // Clean up tool state even on error
-      toolStateManager.clearState(this.context.sessionId);
+      toolStateManager.clearState(this.context.sessionId, this.context.userId);
 
       this.context.errors.push(error as Error);
       return {
