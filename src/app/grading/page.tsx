@@ -187,7 +187,7 @@ export default function GradingPage() {
         <Header />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-slate-800 rounded-lg p-8 text-center border border-slate-700">
-            <h2 className="text-2xl font-bold text-white mb-4">? All Done!</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">All Done!</h2>
             <p className="text-slate-400 mb-6">
               You've evaluated all available summaries. Thank you for your feedback!
             </p>
@@ -251,7 +251,7 @@ export default function GradingPage() {
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 text-sm"
               >
-                Read full article ?
+                Read full article
               </a>
             )}
           </div>

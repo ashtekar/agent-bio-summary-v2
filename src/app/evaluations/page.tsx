@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
 import Card from '@/components/Card';
+import { AuthGuard } from '@/components/AuthGuard';
 
 interface Evaluation {
   id: string;
@@ -82,20 +83,23 @@ export default function EvaluationsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900">
-        <Header />
-        <Navigation />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center text-slate-400">Loading evaluations...</div>
-        </main>
-      </div>
+      <AuthGuard>
+        <div className="min-h-screen bg-slate-900">
+          <Header />
+          <Navigation />
+          <main className="max-w-7xl mx-auto px-6 py-8">
+            <div className="text-center text-slate-400">Loading evaluations...</div>
+          </main>
+        </div>
+      </AuthGuard>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <Header />
-      <Navigation />
+    <AuthGuard>
+      <div className="min-h-screen bg-slate-900">
+        <Header />
+        <Navigation />
       
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Card>
@@ -171,9 +175,10 @@ export default function EvaluationsPage() {
               <h3 className="text-xl font-bold text-white">Summary Details</h3>
               <button
                 onClick={closeSummaryModal}
-                className="text-slate-400 hover:text-white text-2xl leading-none"
+                className="text-slate-400 hover:text-white text-2xl leading-none w-8 h-8 flex items-center justify-center"
+                aria-label="Close modal"
               >
-                ?
+                ×
               </button>
             </div>
 
@@ -187,7 +192,7 @@ export default function EvaluationsPage() {
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 text-sm"
                   >
-                    Read full article ?
+                    Read full article
                   </a>
                 )}
               </div>
@@ -238,5 +243,6 @@ export default function EvaluationsPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

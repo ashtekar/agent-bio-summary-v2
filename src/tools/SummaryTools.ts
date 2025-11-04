@@ -36,7 +36,10 @@ export class SummaryTools {
       
       // Get threadId from tool state
       const sessionId = this.getSessionId();
-      const toolState = toolStateManager.getState(sessionId);
+      // Get userId from LangChainTools helper (set by agent)
+      const { getToolUserId } = require('./LangChainTools');
+      const userId = getToolUserId();
+      const toolState = toolStateManager.getState(sessionId, userId);
       const threadId = toolState.context?.threadId;
       
       if (!threadId) {
@@ -150,7 +153,10 @@ export class SummaryTools {
       
       // Get threadId and stored articles from tool state
       const sessionId = this.getSessionId();
-      const toolState = toolStateManager.getState(sessionId);
+      // Get userId from LangChainTools helper (set by agent)
+      const { getToolUserId } = require('./LangChainTools');
+      const userId = getToolUserId();
+      const toolState = toolStateManager.getState(sessionId, userId);
       const threadId = toolState.context?.threadId;
       const storedArticles = toolState.storedArticles || [];
       

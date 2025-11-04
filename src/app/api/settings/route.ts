@@ -1,17 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { settingsService } from '@/services/SettingsService';
 import { SystemSettings } from '@/types/agent';
+import { requireAuth, requireAdmin } from '@/middleware/auth';
+import { authService } from '@/services/AuthService';
 
-export async function GET() {
+/**
+ * GET /api/settings - Get user settings
+ * Requires authentication
+ */
+export async function GET(request: NextRequest) {
   try {
-    const settings = await settingsService.getAllSettings();
+    // Require authentication
+    const authResult = await requireAuth(request);
+
+    if (!authResult.authorized || !authResult.userId) {
+      return authResult.response || NextResponse.json({
+        success: false,
+        error: 'Unauthorized'
+      }, { status: 401 });
+    }
+
+    const userId = authResult.userId;
+    const settings = await settingsService.getAllSettings(userId);
     const availableModels = settingsService.getAvailableModels();
+
+    // Get user info to include role
+    const user = await authService.getCurrentUser(userId);
 
     return NextResponse.json({
       success: true,
       data: {
         settings,
-        availableModels
+        availableModels,
+        user: user ? {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        } : null
       }
     });
 
@@ -26,6 +52,17 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require admin authentication for settings changes
+    const adminResult = await requireAdmin(request);
+
+    if (!adminResult.authorized || !adminResult.userId || !adminResult.isAdmin) {
+      return adminResult.response || NextResponse.json({
+        success: false,
+        error: 'Forbidden: Admin access required to modify settings'
+      }, { status: 403 });
+    }
+
+    const userId = adminResult.userId;
     const body = await request.json();
     const { systemSettings, searchSettings, recipients } = body;
 
@@ -60,7 +97,7 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      await settingsService.updateSystemSettings(systemSettings);
+      await settingsService.updateSystemSettings(systemSettings, userId);
     }
 
     // Handle search settings update
@@ -91,11 +128,22 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Require admin authentication for recipient management
+    const adminResult = await requireAdmin(request);
+
+    if (!adminResult.authorized || !adminResult.userId || !adminResult.isAdmin) {
+      return adminResult.response || NextResponse.json({
+        success: false,
+        error: 'Forbidden: Admin access required to modify recipients'
+      }, { status: 403 });
+    }
+
+    const userId = adminResult.userId;
     const body = await request.json();
     const { action, recipient } = body;
 
     if (action === 'add_recipient' && recipient) {
-      await settingsService.upsertEmailRecipient(recipient);
+      await settingsService.upsertEmailRecipient(recipient, userId);
       return NextResponse.json({
         success: true,
         message: 'Recipient added successfully'

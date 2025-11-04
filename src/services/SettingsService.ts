@@ -17,20 +17,26 @@ export class SettingsService {
 
   /**
    * Get system settings from Supabase
+   * @param userId - Optional user ID. If provided, returns user-specific settings.
    */
-  async getSystemSettings(): Promise<SystemSettings> {
+  async getSystemSettings(userId?: string): Promise<SystemSettings> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      // Get the most recent system settings (or create new one)
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('system_settings')
         .select('*')
         .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      // Filter by user_id if provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         throw new Error(`Failed to fetch system settings: ${error.message}`);
@@ -84,14 +90,16 @@ export class SettingsService {
 
   /**
    * Get search settings from Supabase
+   * @param userId - Optional user ID. If provided, returns user-specific settings.
    */
-  async getSearchSettings(): Promise<SearchSettings> {
+  async getSearchSettings(userId?: string): Promise<SearchSettings> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      // Get the most recent search settings (or create new one)
+      // Note: search_settings doesn't have user_id yet, so we keep existing behavior
+      // This can be updated later if needed
       const { data, error } = await this.supabase
         .from('search_settings')
         .select('*')
@@ -141,17 +149,25 @@ export class SettingsService {
 
   /**
    * Get email recipients from Supabase
+   * @param userId - Optional user ID. If provided, returns user-specific recipients.
    */
-  async getEmailRecipients(): Promise<EmailRecipient[]> {
+  async getEmailRecipients(userId?: string): Promise<EmailRecipient[]> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      const { data, error } = await this.supabase
+      let query = this.supabase
         .from('email_recipients')
         .select('*')
         .eq('active', true);
+
+      // Filter by user_id if provided
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         throw new Error(`Failed to fetch email recipients: ${error.message}`);
@@ -189,17 +205,18 @@ export class SettingsService {
 
   /**
    * Get all settings from Supabase
+   * @param userId - Optional user ID. If provided, returns user-specific settings.
    */
-  async getAllSettings(): Promise<{
+  async getAllSettings(userId?: string): Promise<{
     searchSettings: SearchSettings;
     systemSettings: SystemSettings;
     recipients: EmailRecipient[];
   }> {
     try {
       const [searchSettings, systemSettings, recipients] = await Promise.all([
-        this.getSearchSettings(),
-        this.getSystemSettings(),
-        this.getEmailRecipients()
+        this.getSearchSettings(userId),
+        this.getSystemSettings(userId),
+        this.getEmailRecipients(userId)
       ]);
 
       console.log('🔍 [SETTINGS-SERVICE] getAllSettings recipients:', JSON.stringify(recipients, null, 2));
@@ -218,14 +235,26 @@ export class SettingsService {
 
   /**
    * Update system settings in Supabase
+   * @param settings - Settings to update
+   * @param userId - User ID (required for user-specific settings)
    */
-  async updateSystemSettings(settings: Partial<SystemSettings>): Promise<void> {
+  async updateSystemSettings(settings: Partial<SystemSettings>, userId?: string): Promise<void> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
       }
 
-      // Create new system settings record (don't update existing ones)
+      if (!userId) {
+        throw new Error('User ID is required to update system settings');
+      }
+
+      // Check if user already has settings
+      const { data: existing } = await this.supabase
+        .from('system_settings')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
       const insertData = {
         summary_length: settings.summaryLength,
         target_audience: settings.targetAudience,
@@ -235,13 +264,27 @@ export class SettingsService {
         llm_temperature: settings.llmTemperature,
         llm_max_tokens: settings.llmMaxTokens,
         relevancy_threshold: settings.relevancyThreshold,
-        created_at: new Date().toISOString(),
+        max_articles_to_summarize: settings.maxArticlesToSummarize,
+        user_id: userId,
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await this.supabase
-        .from('system_settings')
-        .insert(insertData);
+      let error;
+      if (existing) {
+        // Update existing settings
+        ({ error } = await this.supabase
+          .from('system_settings')
+          .update(insertData)
+          .eq('user_id', userId));
+      } else {
+        // Create new settings
+        ({ error } = await this.supabase
+          .from('system_settings')
+          .insert({
+            ...insertData,
+            created_at: new Date().toISOString()
+          }));
+      }
 
       if (error) {
         throw new Error(`Failed to update system settings: ${error.message}`);
@@ -293,11 +336,17 @@ export class SettingsService {
 
   /**
    * Add or update email recipient in Supabase
+   * @param recipient - Recipient to upsert
+   * @param userId - User ID (required for user-specific recipients)
    */
-  async upsertEmailRecipient(recipient: EmailRecipient): Promise<void> {
+  async upsertEmailRecipient(recipient: EmailRecipient, userId?: string): Promise<void> {
     try {
       if (!this.supabase) {
         throw new Error('Supabase client not initialized');
+      }
+
+      if (!userId) {
+        throw new Error('User ID is required to upsert email recipient');
       }
 
       const { error } = await this.supabase
@@ -306,6 +355,7 @@ export class SettingsService {
           email: recipient.email,
           name: recipient.name,
           preferences: recipient.preferences,
+          user_id: userId,
           active: true,
           updated_at: new Date().toISOString()
         });

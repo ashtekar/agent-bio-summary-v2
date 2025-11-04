@@ -38,6 +38,7 @@ export const createMockEmailRecipient = (overrides?: Partial<EmailRecipient>): E
 });
 
 export const createMockAgentContext = (overrides?: Partial<AgentContext>): AgentContext => ({
+  userId: 'test-user-id',
   searchSettings: createMockSearchSettings(),
   systemSettings: createMockSystemSettings(),
   recipients: [createMockEmailRecipient()],

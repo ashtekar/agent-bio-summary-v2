@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
 import Card from '@/components/Card';
+import { AuthGuard } from '@/components/AuthGuard';
 
 interface Summary {
   id: string;
@@ -160,20 +161,23 @@ export default function DailySummaries() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900">
-        <Header />
-        <Navigation />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center text-slate-400">Loading...</div>
-        </main>
-      </div>
+      <AuthGuard>
+        <div className="min-h-screen bg-slate-900">
+          <Header />
+          <Navigation />
+          <main className="max-w-7xl mx-auto px-6 py-8">
+            <div className="text-center text-slate-400">Loading...</div>
+          </main>
+        </div>
+      </AuthGuard>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <Header />
-      <Navigation />
+    <AuthGuard>
+      <div className="min-h-screen bg-slate-900">
+        <Header />
+        <Navigation />
       
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -336,6 +340,7 @@ export default function DailySummaries() {
         </div>
       </main>
     </div>
+    </AuthGuard>
   );
 }
 

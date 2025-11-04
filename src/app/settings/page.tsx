@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
 import Card from '@/components/Card';
+import { AuthGuard } from '@/components/AuthGuard';
 
 interface EmailRecipient {
   id: string;
@@ -50,6 +51,7 @@ export default function SettingsPage() {
   const [newSite, setNewSite] = useState({ name: '', domain: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -62,8 +64,13 @@ export default function SettingsPage() {
         const result = await response.json();
         const apiSettings = result.data?.settings;
         const models = result.data?.availableModels || [];
+        const user = result.data?.user;
+        
+        // Check if user is admin
+        setIsAdmin(user?.role === 'admin' || false);
         
         console.log('🔧 Available models from API:', models);
+        console.log('🔧 User role:', user?.role, 'isAdmin:', user?.role === 'admin');
         setAvailableModels(models);
         
         // Transform API response to frontend format
@@ -322,51 +329,63 @@ export default function SettingsPage() {
 
   if (loading || !settings) {
     return (
-      <div className="min-h-screen bg-slate-900">
-        <Header />
-        <Navigation />
-        <main className="max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center text-slate-400">Loading...</div>
-        </main>
-      </div>
+      <AuthGuard>
+        <div className="min-h-screen bg-slate-900">
+          <Header />
+          <Navigation />
+          <main className="max-w-7xl mx-auto px-6 py-8">
+            <div className="text-center text-slate-400">Loading...</div>
+          </main>
+        </div>
+      </AuthGuard>
     );
   }
 
   const activeSites = settings?.searchSites?.filter(s => s.active).length || 0;
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <Header />
-      <Navigation />
+    <AuthGuard>
+      <div className="min-h-screen bg-slate-900">
+        <Header />
+        <Navigation />
       
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="space-y-8">
           {/* Email Recipients */}
           <Card>
-            <h2 className="text-2xl font-bold text-white mb-6">Email Recipients</h2>
-            
-            <div className="flex gap-3 mb-6">
-              <input
-                type="email"
-                placeholder="Email address"
-                value={newRecipient.email}
-                onChange={(e) => setNewRecipient({ ...newRecipient, email: e.target.value })}
-                className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Name"
-                value={newRecipient.name}
-                onChange={(e) => setNewRecipient({ ...newRecipient, name: e.target.value })}
-                className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-              <button
-                onClick={addRecipient}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium"
-              >
-                Add
-              </button>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">Email Recipients</h2>
+              {!isAdmin && (
+                <span className="text-slate-400 text-sm bg-slate-800 px-3 py-1 rounded">
+                  View Only (Admin Only)
+                </span>
+              )}
             </div>
+            
+            {isAdmin && (
+              <div className="flex gap-3 mb-6">
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={newRecipient.email}
+                  onChange={(e) => setNewRecipient({ ...newRecipient, email: e.target.value })}
+                  className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Name"
+                  value={newRecipient.name}
+                  onChange={(e) => setNewRecipient({ ...newRecipient, name: e.target.value })}
+                  className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={addRecipient}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            )}
 
             <div className="space-y-3">
               {(settings?.recipients || []).map((recipient) => (
@@ -379,19 +398,22 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={recipient.active}
                       onChange={() => toggleRecipient(recipient.id)}
-                      className="w-4 h-4"
+                      disabled={!isAdmin}
+                      className="w-4 h-4 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div>
                       <p className="text-white font-medium">{recipient.name}</p>
                       <p className="text-slate-400 text-sm">{recipient.email}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeRecipient(recipient.id)}
-                    className="text-red-400 hover:text-red-300 text-sm font-medium"
-                  >
-                    Remove
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => removeRecipient(recipient.id)}
+                      className="text-red-400 hover:text-red-300 text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -399,34 +421,43 @@ export default function SettingsPage() {
 
           {/* Search Sites */}
           <Card>
-            <h2 className="text-2xl font-bold text-white mb-4">Search Sites</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white">Search Sites</h2>
+              {!isAdmin && (
+                <span className="text-slate-400 text-sm bg-slate-800 px-3 py-1 rounded">
+                  View Only (Admin Only)
+                </span>
+              )}
+            </div>
             <p className="text-slate-400 text-sm mb-6">
               Configure which websites should be searched for articles. At least one site must be active for search to work.
             </p>
 
-            <div className="flex gap-3 mb-6">
-              <input
-                type="text"
-                placeholder="Display Name (e.g., LinkedIn)"
-                value={newSite.name}
-                onChange={(e) => setNewSite({ ...newSite, name: e.target.value })}
-                className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-              <input
-                type="text"
-                placeholder="Domain (e.g., news.mit.edu, linkedin.com)"
-                value={newSite.domain}
-                onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
-                className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-              <button
-                onClick={addSearchSite}
-                disabled={!newSite.name || !newSite.domain}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-2 rounded font-medium disabled:cursor-not-allowed"
-              >
-                Add
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex gap-3 mb-6">
+                <input
+                  type="text"
+                  placeholder="Display Name (e.g., LinkedIn)"
+                  value={newSite.name}
+                  onChange={(e) => setNewSite({ ...newSite, name: e.target.value })}
+                  className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Domain (e.g., news.mit.edu, linkedin.com)"
+                  value={newSite.domain}
+                  onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
+                  className="flex-1 bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={addSearchSite}
+                  disabled={!newSite.name || !newSite.domain}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-2 rounded font-medium disabled:cursor-not-allowed"
+                >
+                  Add
+                </button>
+              </div>
+            )}
 
             <div className="space-y-2 mb-4">
               {(settings?.searchSites || []).map((site) => (
@@ -439,19 +470,22 @@ export default function SettingsPage() {
                       type="checkbox"
                       checked={site.active}
                       onChange={() => toggleSearchSite(site.id)}
-                      className="w-4 h-4"
+                      disabled={!isAdmin}
+                      className="w-4 h-4 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div>
                       <p className="text-white font-medium text-sm">{site.name}</p>
                       <p className="text-slate-400 text-xs">{site.domain}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => removeSearchSite(site.id)}
-                    className="text-red-400 hover:text-red-300 text-sm font-medium"
-                  >
-                    Remove
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => removeSearchSite(site.id)}
+                      className="text-red-400 hover:text-red-300 text-sm font-medium"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -463,7 +497,14 @@ export default function SettingsPage() {
 
           {/* Search Settings */}
           <Card>
-            <h2 className="text-2xl font-bold text-white mb-6">Search Settings</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">Search Settings</h2>
+              {!isAdmin && (
+                <span className="text-slate-400 text-sm bg-slate-800 px-3 py-1 rounded">
+                  View Only (Admin Only)
+                </span>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
@@ -472,7 +513,8 @@ export default function SettingsPage() {
                   type="number"
                   value={settings.timeWindow}
                   onChange={(e) => setSettings({ ...settings, timeWindow: parseInt(e.target.value) })}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={!isAdmin}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -486,7 +528,8 @@ export default function SettingsPage() {
                     const value = Math.min(100, Math.max(1, parseInt(e.target.value) || 1));
                     setSettings({ ...settings, maxArticles: value });
                   }}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={!isAdmin}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -496,7 +539,8 @@ export default function SettingsPage() {
               <select
                 value={settings.relevanceThreshold}
                 onChange={(e) => setSettings({ ...settings, relevanceThreshold: parseFloat(e.target.value) })}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                disabled={!isAdmin}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="0.8">🟢 Very Strict (0.8+) - Only the most relevant articles</option>
                 <option value="0.6">🟡 High Quality (0.6+) - Recommended</option>
@@ -516,14 +560,22 @@ export default function SettingsPage() {
                 value={settings.keywords}
                 onChange={(e) => setSettings({ ...settings, keywords: e.target.value })}
                 placeholder="synthetic biology, CRISPR, gene editing"
-                className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                disabled={!isAdmin}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           </Card>
 
           {/* System Settings */}
           <Card>
-            <h2 className="text-2xl font-bold text-white mb-6">System Settings</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">System Settings</h2>
+              {!isAdmin && (
+                <span className="text-slate-400 text-sm bg-slate-800 px-3 py-1 rounded">
+                  View Only (Admin Only)
+                </span>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
@@ -532,7 +584,8 @@ export default function SettingsPage() {
                   type="time"
                   value={settings.scheduleTime}
                   onChange={(e) => setSettings({ ...settings, scheduleTime: e.target.value })}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={!isAdmin}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -540,7 +593,8 @@ export default function SettingsPage() {
                 <select
                   value={settings.summaryLength}
                   onChange={(e) => setSettings({ ...settings, summaryLength: e.target.value })}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={!isAdmin}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="short">Short</option>
                   <option value="medium">Medium</option>
@@ -554,7 +608,8 @@ export default function SettingsPage() {
               <select
                 value={settings.model}
                 onChange={(e) => setSettings({ ...settings, model: e.target.value })}
-                className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                disabled={!isAdmin}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {availableModels.map((model) => (
                   <option key={model.id} value={model.id}>
@@ -573,7 +628,8 @@ export default function SettingsPage() {
                 id="include-images"
                 checked={settings.includeImages}
                 onChange={(e) => setSettings({ ...settings, includeImages: e.target.checked })}
-                className="w-4 h-4"
+                disabled={!isAdmin}
+                className="w-4 h-4 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <label htmlFor="include-images" className="text-slate-300 text-sm">
                 Include images in email summaries
@@ -583,7 +639,14 @@ export default function SettingsPage() {
 
           {/* A/B Comparison Settings */}
           <Card>
-            <h2 className="text-2xl font-bold text-white mb-4">🔬 A/B Comparison Settings</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white">🔬 A/B Comparison Settings</h2>
+              {!isAdmin && (
+                <span className="text-slate-400 text-sm bg-slate-800 px-3 py-1 rounded">
+                  View Only (Admin Only)
+                </span>
+              )}
+            </div>
             <p className="text-slate-400 text-sm mb-6">
               Configure the advanced model used for A/B comparison testing. These settings affect the quality and cost of comparison summaries.
             </p>
@@ -594,7 +657,8 @@ export default function SettingsPage() {
                 <select
                   value={settings.comparisonModel}
                   onChange={(e) => setSettings({ ...settings, comparisonModel: e.target.value })}
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={!isAdmin}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="gpt-5">GPT-5 (Latest & Most Capable)</option>
                   <option value="gpt-4o">GPT-4o (High Quality)</option>
@@ -613,7 +677,8 @@ export default function SettingsPage() {
                   onChange={(e) => setSettings({ ...settings, maxTokens: parseInt(e.target.value) })}
                   min="100"
                   max="1000"
-                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500"
+                  disabled={!isAdmin}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <p className="text-slate-400 text-xs mt-2">
                   Maximum length of comparison summaries (100-1000 tokens).
@@ -630,7 +695,8 @@ export default function SettingsPage() {
                 step="0.1"
                 value={settings.temperature}
                 onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })}
-                className="w-full"
+                disabled={!isAdmin}
+                className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <div className="flex justify-between text-xs text-slate-400 mt-2">
                 <span>Focused (0.0)</span>
@@ -660,17 +726,26 @@ export default function SettingsPage() {
 
           {/* Save Button */}
           <div className="flex justify-end">
-            <button
-              onClick={saveSettings}
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-8 py-3 rounded-lg font-medium text-lg disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save Settings'}
-            </button>
+            {isAdmin ? (
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-8 py-3 rounded-lg font-medium text-lg disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : 'Save Settings'}
+              </button>
+            ) : (
+              <div className="bg-slate-800 border border-slate-700 rounded-lg px-8 py-3">
+                <p className="text-slate-400 text-sm">
+                  Only administrators can modify settings. Contact an admin to make changes.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </main>
     </div>
+    </AuthGuard>
   );
 }
 
