@@ -28,7 +28,7 @@ export function useAuth(): UseAuthReturn {
   // Check authentication status on mount and when needed
   const checkAuth = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/me');
+      const response = await fetch('/api/auth');
       
       if (response.ok) {
         const data = await response.json();
