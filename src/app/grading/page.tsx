@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Summary {
   id: string;
@@ -28,6 +29,7 @@ interface GradingCriteria {
 export default function GradingPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -45,8 +47,10 @@ export default function GradingPage() {
 
   useEffect(() => {
     const summaryId = searchParams.get('summaryId');
-    const email = searchParams.get('email') || '';
-    const name = searchParams.get('name') || '';
+    // Use email from query params, or fall back to authenticated user's email
+    const email = searchParams.get('email') || user?.email || '';
+    // Use name from query params, or fall back to authenticated user's name
+    const name = searchParams.get('name') || user?.name || '';
 
     setGraderEmail(email);
     setGraderName(name);
@@ -59,7 +63,7 @@ export default function GradingPage() {
       setError('Please provide either summaryId or email parameter');
       setLoading(false);
     }
-  }, [searchParams]);
+  }, [searchParams, user]);
 
   async function loadSummary(summaryId: string) {
     try {

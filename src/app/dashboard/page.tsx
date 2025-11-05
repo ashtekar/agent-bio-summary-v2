@@ -25,7 +25,7 @@ interface RecentSummary {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentSummaries, setRecentSummaries] = useState<RecentSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,17 +123,35 @@ export default function Dashboard() {
   }
 
   async function gradeNow() {
-    const email = prompt('Enter your email address to grade summaries:');
-    if (!email) {
-      return; // User cancelled
-    }
+    // Use authenticated user's email if available
+    if (user?.email) {
+      try {
+        // Navigate to grading page with authenticated user's email
+        const params = new URLSearchParams({
+          email: user.email
+        });
+        if (user.name) {
+          params.append('name', user.name);
+        }
+        router.push(`/grading?${params.toString()}`);
+      } catch (error) {
+        console.error('Error navigating to grading page:', error);
+        alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
+    } else {
+      // Fallback: prompt for email if somehow user is not authenticated
+      const email = prompt('Enter your email address to grade summaries:');
+      if (!email) {
+        return; // User cancelled
+      }
 
-    try {
-      // Navigate to grading page with email
-      router.push(`/grading?email=${encodeURIComponent(email)}`);
-    } catch (error) {
-      console.error('Error navigating to grading page:', error);
-      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      try {
+        // Navigate to grading page with email
+        router.push(`/grading?email=${encodeURIComponent(email)}`);
+      } catch (error) {
+        console.error('Error navigating to grading page:', error);
+        alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
     }
   }
 
