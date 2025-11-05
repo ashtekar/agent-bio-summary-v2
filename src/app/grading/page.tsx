@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
@@ -44,26 +44,53 @@ export default function GradingPage() {
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
   const [noMoreSummaries, setNoMoreSummaries] = useState(false);
+  const lastLoadedParams = useRef<{ summaryId: string | null; email: string }>({ summaryId: null, email: '' });
+
+  // Extract primitive values from searchParams and user to avoid unnecessary re-renders
+  const summaryId = searchParams.get('summaryId');
+  const emailParam = searchParams.get('email');
+  const nameParam = searchParams.get('name');
+  const userEmail = user?.email || '';
+  const userName = user?.name || '';
+
+  // Determine the final email and summaryId to use
+  const finalEmail = emailParam || userEmail || '';
+  const finalSummaryId = summaryId;
 
   useEffect(() => {
-    const summaryId = searchParams.get('summaryId');
     // Use email from query params, or fall back to authenticated user's email
-    const email = searchParams.get('email') || user?.email || '';
+    const email = finalEmail;
     // Use name from query params, or fall back to authenticated user's name
-    const name = searchParams.get('name') || user?.name || '';
+    const name = nameParam || userName || '';
 
+    // Always update grader email and name when they change
     setGraderEmail(email);
     setGraderName(name);
 
-    if (summaryId) {
-      loadSummary(summaryId);
-    } else if (email) {
-      loadNextSummary(email);
-    } else {
+    // Only proceed with loading if we have either a summaryId or an email
+    if (!finalSummaryId && !email) {
       setError('Please provide either summaryId or email parameter');
       setLoading(false);
+      return;
     }
-  }, [searchParams, user]);
+
+    // Check if we've already loaded with these exact parameters
+    if (
+      lastLoadedParams.current.summaryId === finalSummaryId &&
+      lastLoadedParams.current.email === email
+    ) {
+      return; // Already loaded with these parameters, skip reloading
+    }
+
+    // Update last loaded params before loading to prevent race conditions
+    lastLoadedParams.current = { summaryId: finalSummaryId, email };
+
+    if (finalSummaryId) {
+      loadSummary(finalSummaryId);
+    } else {
+      loadNextSummary(email);
+    }
+  }, [finalSummaryId, finalEmail, nameParam, userName]);
 
   async function loadSummary(summaryId: string) {
     try {
