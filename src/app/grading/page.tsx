@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import Navigation from '@/components/Navigation';
 
 interface Summary {
   id: string;
@@ -174,6 +175,7 @@ export default function GradingPage() {
     return (
       <div className="min-h-screen bg-slate-900">
         <Header />
+        <Navigation />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="text-center text-slate-400">Loading summary...</div>
         </main>
@@ -185,6 +187,7 @@ export default function GradingPage() {
     return (
       <div className="min-h-screen bg-slate-900">
         <Header />
+        <Navigation />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-slate-800 rounded-lg p-8 text-center border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-4">All Done!</h2>
@@ -207,6 +210,7 @@ export default function GradingPage() {
     return (
       <div className="min-h-screen bg-slate-900">
         <Header />
+        <Navigation />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-red-900/20 border border-red-700 rounded-lg p-6 text-red-400">
             {error}
@@ -223,6 +227,7 @@ export default function GradingPage() {
   return (
     <div className="min-h-screen bg-slate-900">
       <Header />
+      <Navigation />
       
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Rubric */}
