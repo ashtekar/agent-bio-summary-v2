@@ -224,9 +224,9 @@ export default function Dashboard() {
               </AdminGuard>
               <button
                 onClick={gradeNow}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
               >
-                ⭐ Grade Now
+                Grade Now
               </button>
             </div>
           </Card>
