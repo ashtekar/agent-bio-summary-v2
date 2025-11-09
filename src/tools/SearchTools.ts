@@ -221,10 +221,11 @@ export class SearchTools {
         for (const chunk of chunks) {
           const promises = chunk.map(async (result) => {
             try {
-              const content = await this.extractArticleContent(result.url);
+              const { content, title: derivedTitle } = await this.extractArticleContent(result.url);
               return {
                 ...result,
                 content,
+                title: derivedTitle || result.title,
                 relevancyScore: 0
               } as Article;
             } catch (error) {
@@ -276,7 +277,7 @@ export class SearchTools {
   /**
    * Extract content from a single article URL
    */
-  private async extractArticleContent(url: string): Promise<string> {
+  private async extractArticleContent(url: string): Promise<{ content: string; title?: string }> {
     try {
       const response = await fetch(url, {
         headers: {
@@ -290,10 +291,8 @@ export class SearchTools {
       
       const html = await response.text();
       
-      // Simple content extraction - in production, you might want to use a more sophisticated parser
-      const content = this.extractTextFromHTML(html);
-      
-      return content;
+      // Simple content extraction with best-effort title derivation
+      return this.extractContentAndTitleFromHTML(html);
       
     } catch (error) {
       console.warn(`Failed to extract content from ${url}:`, error);
@@ -321,6 +320,80 @@ export class SearchTools {
     }
     
     return cleanHtml;
+  }
+
+  /**
+   * Extract readable text content and a refined title from the HTML
+   */
+  private extractContentAndTitleFromHTML(html: string): { content: string; title?: string } {
+    const content = this.extractTextFromHTML(html);
+    const title = this.deriveTitleFromHTML(html);
+    return { content, title };
+  }
+
+  /**
+   * Derive the best available title from HTML metadata and tags
+   */
+  private deriveTitleFromHTML(html: string): string | undefined {
+    if (!html) {
+      return undefined;
+    }
+
+    const candidateMetaTitles = [
+      this.extractMetaTagContent(html, 'property', 'og:title'),
+      this.extractMetaTagContent(html, 'name', 'og:title'),
+      this.extractMetaTagContent(html, 'name', 'twitter:title'),
+      this.extractMetaTagContent(html, 'name', 'title')
+    ].filter(Boolean) as string[];
+
+    const titleTag = this.extractTitleTag(html);
+
+    const rawTitle = candidateMetaTitles.find(text => text && text.trim().length > 0)
+      || titleTag;
+
+    if (!rawTitle) {
+      return undefined;
+    }
+
+    const decodedTitle = this.decodeHtmlEntities(rawTitle).trim();
+    return decodedTitle.length > 0 ? decodedTitle : undefined;
+  }
+
+  /**
+   * Extract the value of a meta tag's content attribute matching the given criteria
+   */
+  private extractMetaTagContent(html: string, attributeName: 'property' | 'name', attributeValue: string): string | undefined {
+    const metaTagRegex = new RegExp(`<meta[^>]+${attributeName}\\s*=\\s*["']${attributeValue}["'][^>]*>`, 'i');
+    const match = html.match(metaTagRegex);
+    if (!match) {
+      return undefined;
+    }
+
+    const contentMatch = match[0].match(/content\s*=\s*["']([^"']+)["']/i);
+    return contentMatch ? contentMatch[1] : undefined;
+  }
+
+  /**
+   * Extract the text inside the <title> tag
+   */
+  private extractTitleTag(html: string): string | undefined {
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    return titleMatch ? titleMatch[1] : undefined;
+  }
+
+  /**
+   * Decode a limited set of HTML entities commonly seen in titles
+   */
+  private decodeHtmlEntities(text: string): string {
+    const entities: Record<string, string> = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&apos;': "'"
+    };
+    return text.replace(/&(?:amp|lt|gt|quot|#39|apos);/g, entity => entities[entity] || entity);
   }
 
   /**
@@ -422,30 +495,31 @@ export class SearchTools {
       const concurrencyLimit = 5;
       const chunks = this.chunkArray(searchResults, concurrencyLimit);
       
-      for (const chunk of chunks) {
-        const promises = chunk.map(async (result) => {
-          try {
-            const content = await this.extractArticleContent(result.url);
-            return {
-              ...result,
-              content,
-              relevancyScore: 0
-            } as Article;
-          } catch (error) {
-            console.warn(`[Extract] ✗ Failed to extract content from ${result.url}:`, error);
-            let fallbackContent = result.snippet || 'Content extraction failed';
-            if (error instanceof Error && error.message.includes('403')) {
-              fallbackContent = `[Access Restricted - Using Title/Snippet Only] ${result.snippet || result.title}`;
-            } else if (error instanceof Error && error.message.includes('404')) {
-              fallbackContent = `[Page Not Found - Using Title/Snippet Only] ${result.snippet || result.title}`;
+        for (const chunk of chunks) {
+          const promises = chunk.map(async (result) => {
+            try {
+              const { content, title: derivedTitle } = await this.extractArticleContent(result.url);
+              return {
+                ...result,
+                content,
+                title: derivedTitle || result.title,
+                relevancyScore: 0
+              } as Article;
+            } catch (error) {
+              console.warn(`[Extract] ✗ Failed to extract content from ${result.url}:`, error);
+              let fallbackContent = result.snippet || 'Content extraction failed';
+              if (error instanceof Error && error.message.includes('403')) {
+                fallbackContent = `[Access Restricted - Using Title/Snippet Only] ${result.snippet || result.title}`;
+              } else if (error instanceof Error && error.message.includes('404')) {
+                fallbackContent = `[Page Not Found - Using Title/Snippet Only] ${result.snippet || result.title}`;
+              }
+              return {
+                ...result,
+                content: fallbackContent,
+                relevancyScore: 0
+              } as Article;
             }
-            return {
-              ...result,
-              content: fallbackContent,
-              relevancyScore: 0
-            } as Article;
-          }
-        });
+          });
         
         const chunkResults = await Promise.all(promises);
         articles.push(...chunkResults);
