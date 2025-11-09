@@ -4,56 +4,6 @@
 
 This document explains how to set up and use the human evaluation and grading system for article summaries.
 
-## Database Setup
-
-### Step 1: Create the Evaluations Table
-
-Run the following SQL in your Supabase SQL Editor:
-
-```sql
-CREATE TABLE summary_evaluations (
-  -- Primary key
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  
-  -- Links
-  summary_id UUID NOT NULL REFERENCES article_summaries(id) ON DELETE CASCADE,
-  
-  -- Grader information
-  grader_email VARCHAR(255) NOT NULL,
-  grader_name VARCHAR(255), -- Optional name if available
-  
-  -- Evaluation scores (1-10 scale, stored as 0-1 after normalization)
-  simple_terminology DECIMAL(3,2) NOT NULL CHECK (simple_terminology >= 0 AND simple_terminology <= 1),
-  clear_concept DECIMAL(3,2) NOT NULL CHECK (clear_concept >= 0 AND clear_concept <= 1),
-  clear_methodology DECIMAL(3,2) NOT NULL CHECK (clear_methodology >= 0 AND clear_methodology <= 1),
-  balanced_details DECIMAL(3,2) NOT NULL CHECK (balanced_details >= 0 AND balanced_details <= 1),
-  
-  -- Optional qualitative feedback (not stored in this version, but schema supports it for future)
-  feedback TEXT, -- Limited to 50 words (enforced by application, not DB)
-  
-  -- Timestamps
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  
-  -- Constraints
-  CONSTRAINT summary_evaluations_unique UNIQUE (summary_id, grader_email)
-);
-
--- Indexes for fast queries
-CREATE INDEX idx_summary_evaluations_summary ON summary_evaluations(summary_id);
-CREATE INDEX idx_summary_evaluations_grader ON summary_evaluations(grader_email);
-CREATE INDEX idx_summary_evaluations_created ON summary_evaluations(created_at DESC);
-```
-
-### Step 2: Set Up Row-Level Security (if enabled)
-
-If you have RLS enabled, add policies:
-
-```sql
--- Allow service role to read/write
-CREATE POLICY "Service role full access" ON summary_evaluations
-  FOR ALL USING (auth.role() = 'service_role');
-```
-
 ## Features Implemented
 
 ### 1. Grading UI (`/grading`)

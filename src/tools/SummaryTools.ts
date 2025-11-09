@@ -70,13 +70,16 @@ export class SummaryTools {
             // Save to database if threadId is available
             if (threadId && summaryResult.runId) {
               try {
-                await summaryStorageService.saveArticleSummary({
-                  articleId: article.id,
-                  threadId: threadId,
-                  summary: summaryResult.summary,
-                  modelUsed: this.summarizationLangchain.modelName || 'gpt-4o-mini',
-                  langsmithRunId: summaryResult.runId
-                });
+                await summaryStorageService.saveArticleSummary(
+                  {
+                    articleId: article.id,
+                    threadId: threadId,
+                    summary: summaryResult.summary,
+                    modelUsed: this.summarizationLangchain.modelName || 'gpt-4o-mini',
+                    langsmithRunId: summaryResult.runId
+                  },
+                  userId
+                );
                 console.log(`✅ Saved article summary for article ${article.id} to database`);
               } catch (storageError) {
                 console.warn(`⚠️ Failed to save article summary for article ${article.id} to database (article may not exist in articles table):`, storageError);

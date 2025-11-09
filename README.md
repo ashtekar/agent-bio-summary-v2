@@ -304,13 +304,10 @@ You can run A/B tests on:
 
 ### **Evaluations & Grading**
 - **[Evaluations Setup](./docs/EVALUATIONS-SETUP.md)**: Human evaluation system setup
-- **[Evaluations Database Schema](./docs/EVALUATIONS-DB-SCHEMA.md)**: Database schema for evaluations
-- **[Evaluations Migration](./docs/EVALUATIONS-MIGRATION.md)**: Migration from old schema
 
 ### **LangSmith & Prompts**
-- **[Prompt Hub Setup Guide](./docs/PROMPT-HUB-SETUP.md)**: Step-by-step Hub configuration
 - **[Prompts for Upload](./docs/prompts-for-hub-upload.md)**: All 5 prompt templates for Hub
-- **[LangChain Migration Plan](./LANGCHAIN-MIGRATION-PLAN.md)**: Migration strategy and status
+
 
 
 
