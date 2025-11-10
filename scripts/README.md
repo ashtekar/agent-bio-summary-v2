@@ -1,20 +1,14 @@
-# Deployment Cleanup Scripts
+# Deployment Cleanup Script
 
-This directory contains scripts to manage and clean up Vercel deployments for the Agent Bio Summary V2 project.
+This directory contains the automation used to clean up Vercel preview deployments for the Agent Bio Summary V2 project.
 
-## 🧹 Cleanup Scripts
+## 🧹 Script Overview
 
-### Node.js Version (`cleanup-deployments.js`)
-A comprehensive Node.js script with advanced features and detailed logging.
+`cleanup-deployments.sh` is a lightweight shell script that talks directly to the Vercel REST API. It lists every deployment, keeps production deployments safe, and deletes stale preview deployments beyond a configurable retention window.
 
-### Shell Version (`cleanup-deployments.sh`)
-A lightweight shell script that uses Vercel's REST API to fetch and display deployment information.
-
-**⚠️ Security Note**: This script requires a Vercel Personal Access Token. See [Security Setup](#-security-setup) below for safe configuration.
+> ⚠️ **Security Note**: The script requires a Vercel Personal Access Token (PAT). Never commit tokens to git.
 
 ## 🔐 Security Setup
-
-The shell script requires a Vercel Personal Access Token. **Never hardcode tokens in scripts or commit them to git!**
 
 ### Option 1: Environment Variable (Recommended)
 ```bash
@@ -26,7 +20,7 @@ export VERCEL_TOKEN="your_token_here"
 ./scripts/cleanup-deployments.sh
 ```
 
-### Option 2: Use a .env file (Git-Ignored)
+### Option 2: Use a .env file (git-ignored)
 ```bash
 # Create a .env file (already in .gitignore)
 echo 'VERCEL_TOKEN=your_token_here' > .env.vercel
@@ -36,10 +30,10 @@ source .env.vercel && ./scripts/cleanup-deployments.sh
 ```
 
 ### Get Your Vercel Token
-1. Go to https://vercel.com/account/tokens
-2. Create a new token with appropriate permissions
-3. Copy the token and save it securely
-4. **Never commit the token to git!**
+1. Go to https://vercel.com/account/tokens  
+2. Create a token with access to the project (read + write deployments)  
+3. Store the token securely  
+4. **Do not** commit the token to git
 
 ## 🚀 Usage
 
@@ -52,89 +46,59 @@ npm run cleanup:deployments:dry
 npm run cleanup:deployments
 ```
 
-### Advanced Usage
-
-#### Node.js Script
+### Direct Execution
 ```bash
-# Dry run with custom keep count
-node scripts/cleanup-deployments.js --dry-run --keep=3
-
-# Clean up with custom project name
-node scripts/cleanup-deployments.js --project=my-project --keep=10
-
-# Show help
-node scripts/cleanup-deployments.js --help
-```
-
-#### Shell Script
-```bash
-# Fetch and display all deployments (requires VERCEL_TOKEN env var)
-export VERCEL_TOKEN="your_token"
+# Basic usage (default keep count = 5 preview deployments)
 ./scripts/cleanup-deployments.sh
 
-# Or use with a .env file
-source .env.vercel && ./scripts/cleanup-deployments.sh
-```
+# Keep only the latest preview deployment
+./scripts/cleanup-deployments.sh --keep 1
 
-**Note**: The current shell script only fetches and displays deployment information using Vercel's REST API. It does not perform deletions yet.
+# Override project or team identifiers
+./scripts/cleanup-deployments.sh --project-id prj_123 --team-id team_abc
+
+# Show help
+./scripts/cleanup-deployments.sh --help
+```
 
 ## 📋 Features
 
-### What the Scripts Do
-- **Smart Cleanup**: Keeps the latest production deployment
-- **Configurable**: Set how many preview deployments to keep
-- **Safe**: Always run dry-run first to see what will be deleted
-- **Detailed Logging**: Shows exactly what's being deleted
-- **Error Handling**: Gracefully handles failures
-
-### Safety Features
-- **Dry Run Mode**: Preview deletions without actually deleting
-- **Confirmation**: 5-second delay before actual deletion
-- **Production Protection**: Always keeps the latest production deployment
-- **Error Recovery**: Continues even if some deletions fail
+- **Production-safe**: Always keeps the latest promoted/production deployment.
+- **Preview retention**: Keeps only the newest N preview deployments (`--keep N`, default 5).
+- **Dry-run mode**: Inspect what would be deleted before running for real.
+- **Team-aware**: Supports Vercel team scopes via `--team-id` or `VERCEL_TEAM_ID`.
+- **Build protection**: Skips deployments that are still `BUILDING` or `QUEUED`.
+- **Detailed logging**: Shows branch, status, and timestamp for every deletion candidate.
 
 ## ⚙️ Configuration
 
-### Default Settings
-- **Keep Count**: 5 deployments (1 production + 4 preview)
-- **Project**: `agent-bio-summary-v2`
-- **Mode**: Live (use `--dry-run` for preview)
-
-### Environment Requirements
-- Vercel CLI installed (`npm install -g vercel`)
-- Authenticated with Vercel (`vercel login`)
-- Project access permissions
-
-## 🔧 Script Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--dry-run` | Show what would be deleted without deleting | false |
-| `--keep=N` | Number of deployments to keep | 5 |
-| `--project=NAME` | Vercel project name | agent-bio-summary-v2 |
-| `--help` | Show help information | - |
+| Setting | How to configure | Default |
+| ------- | ---------------- | ------- |
+| Vercel token | `VERCEL_TOKEN` env | required |
+| Project ID | `--project-id`, `VERCEL_PROJECT_ID` | `prj_Y1HUCATH8Xo0PzRmtHU6M9un4H5s` |
+| Team ID | `--team-id`, `VERCEL_TEAM_ID` | unset |
+| Preview keep count | `--keep`, `VERCEL_KEEP_PREVIEW_COUNT` | `5` |
+| Dry run | `--dry-run` | `false` |
 
 ## 📊 Example Output
 
 ```
 🧹 Vercel Deployment Cleanup Script
-📦 Project: agent-bio-summary-v2
-🔢 Keep count: 5
+📦 Project ID: prj_Y1HUCATH8Xo0PzRmtHU6M9un4H5s
+🔢 Preview keep count: 5
 🔍 Mode: DRY RUN
 
-📋 Fetching deployment list...
-📊 Found 12 deployments
-🏭 Production deployments: 3
-👀 Preview deployments: 9
+📋 Fetching deployments...
+📊 Summary:
+   Total deployments:      18
+   Production deployments: 2 (all kept)
+   Preview deployments:    16
+   Keeping preview:        5 (limit: 5)
+   To delete (preview):    11
 
-🗑️  Deployments to delete: 7
-   - Production: 2
-   - Preview: 5
-
-🔍 DRY RUN - Deployments that would be deleted:
-   1. https://agent-bio-summary-v2-abc123.vercel.app (Production, 2h)
-   2. https://agent-bio-summary-v2-def456.vercel.app (Preview, 1h)
-   3. https://agent-bio-summary-v2-ghi789.vercel.app (Preview, 30m)
+🗑️  Preview deployments to DELETE:
+   ❌ [READY] https://agent-bio-summary-v2-abcdef.vercel.app (Branch: feature/foo, Created: 2025-11-01 16:32:22)
+   ❌ [READY] https://agent-bio-summary-v2-ghijkl.vercel.app (Branch: feature/bar, Created: 2025-10-28 11:05:14)
    ...
 
 ✅ Dry run complete. Use without --dry-run to actually delete.
@@ -142,89 +106,56 @@ source .env.vercel && ./scripts/cleanup-deployments.sh
 
 ## 🛡️ Safety Guidelines
 
-### Before Running
-1. **Always run dry-run first**: `npm run cleanup:deployments:dry`
-2. **Check the output**: Verify the deployments listed are safe to delete
-3. **Backup if needed**: Important deployments should be backed up
-4. **Test in staging**: Use a test project first if unsure
-
-### Best Practices
-- Run cleanup regularly to avoid accumulation
-- Keep more deployments during active development
-- Monitor Vercel usage and costs
-- Document any custom cleanup needs
+1. **Always start with a dry run** (`--dry-run`) and review the list.
+2. Adjust the `--keep` value to retain the desired number of previews.
+3. Run routinely (e.g., weekly) to prevent preview accumulation.
+4. Do not run while critical builds are in progress.
 
 ## 🔄 Automation
 
-### GitHub Actions Integration
-You can integrate these scripts into your CI/CD pipeline:
-
+### GitHub Actions (Manual or Scheduled)
 ```yaml
 # .github/workflows/cleanup-deployments.yml
-name: Cleanup Old Deployments
+name: Cleanup Old Vercel Previews
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
-  workflow_dispatch:  # Manual trigger
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM UTC
+  workflow_dispatch:
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - run: npm install -g vercel
-      - run: vercel login --token ${{ secrets.VERCEL_TOKEN }}
-      - run: npm run cleanup:deployments
+      - uses: actions/checkout@v4
+      - run: chmod +x scripts/cleanup-deployments.sh
+      - run: ./scripts/cleanup-deployments.sh --dry-run
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_Y1HUCATH8Xo0PzRmtHU6M9un4H5s
+      - run: ./scripts/cleanup-deployments.sh
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_Y1HUCATH8Xo0PzRmtHU6M9un4H5s
 ```
 
-### Cron Job (Local)
+### Local Cron Job
 ```bash
-# Add to crontab for weekly cleanup
+# Weekly cleanup every Sunday at 2 AM
 0 2 * * 0 cd /path/to/agent-bio-summary-v2 && npm run cleanup:deployments
 ```
 
 ## 🆘 Troubleshooting
 
-### Common Issues
-
-#### "Vercel CLI not found"
-```bash
-npm install -g vercel
-# or
-npx vercel --version
-```
-
-#### "Not authenticated"
-```bash
-vercel login
-```
-
-#### "Permission denied"
-```bash
-chmod +x scripts/cleanup-deployments.sh
-```
-
-#### "No deployments found"
-- Check if you're in the right project
-- Verify Vercel CLI is working: `vercel ls`
-- Check project permissions
-
-### Getting Help
-- Check Vercel CLI documentation
-- Verify project settings in Vercel dashboard
-- Test with `--dry-run` first
-- Use `--help` for script-specific options
+| Symptom | Fix |
+| ------- | --- |
+| `ERROR: VERCEL_TOKEN environment variable is not set.` | Export `VERCEL_TOKEN` or source `.env.vercel`. |
+| `Failed to fetch deployments` | Ensure the token has access, confirm project/team IDs. |
+| `jq: command not found` | Install jq (`brew install jq`, `apt-get install jq`, etc.). |
+| Script exits without deleting anything | Only preview deployments beyond the keep threshold are removed; increase `--keep` or check branch filters. |
 
 ## 📝 Notes
 
-- Scripts are designed to be safe and conservative
-- Always test with `--dry-run` first
-- Production deployments are protected
-- Preview deployments are cleaned up based on age
-- Failed deletions are logged but don't stop the process
-
-
-
+- Production deployments are never deleted by this script.
+- Preview retention is age-based (oldest previews removed first).
+- The script continues even if some deletions fail and reports the counts.
+- Keep the script executable: `chmod +x scripts/cleanup-deployments.sh`.
