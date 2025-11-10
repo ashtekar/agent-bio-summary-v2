@@ -1,6 +1,7 @@
 import { SearchSettings, Article, ToolResult } from '@/types/agent';
 import { createClient } from '@supabase/supabase-js';
 import { tracingWrapper } from '@/lib/tracing';
+import { createHash } from 'crypto';
 
 export class SearchTools {
   private googleApiKey: string;
@@ -400,8 +401,8 @@ export class SearchTools {
    * Generate unique article ID from URL
    */
   private generateArticleId(url: string): string {
-    const urlHash = Buffer.from(url).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substr(0, 16);
-    return `article_${urlHash}`;
+    const hash = createHash('sha256').update(url).digest('hex');
+    return `article_${hash}`;
   }
 
   /**

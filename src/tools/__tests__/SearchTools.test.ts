@@ -102,4 +102,26 @@ describe('SearchTools', () => {
     expect(article.title).toBe('CRISPR enables new synthetic biology breakthroughs');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('generates collision-resistant IDs for multiple PubMed URLs', () => {
+    const searchTools = new SearchTools();
+    const pubmedUrls = Array.from({ length: 25 }, (_, index) => {
+      const articleNumber = 41000000 + index;
+      return `https://pubmed.ncbi.nlm.nih.gov/${articleNumber}/`;
+    });
+
+    const generatedIds = pubmedUrls.map((url) => {
+      // Access private method for testing purposes
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tools = searchTools as any;
+      return tools.generateArticleId(url) as string;
+    });
+
+    const uniqueIds = new Set(generatedIds);
+    expect(uniqueIds.size).toBe(pubmedUrls.length);
+    generatedIds.forEach((id) => {
+      expect(id.startsWith('article_')).toBe(true);
+      expect(id.length).toBeGreaterThan(20);
+    });
+  });
 });
