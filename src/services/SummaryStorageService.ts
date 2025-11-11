@@ -61,6 +61,7 @@ export class SummaryStorageService {
 
   /**
    * Save daily collated summary
+   * Uses upsert pattern: inserts if new, updates if thread_id already exists
    */
   async saveDailySummary(data: {
     threadId: string;
@@ -75,22 +76,40 @@ export class SummaryStorageService {
         throw new Error('Supabase client not initialized');
       }
 
+      const summaryData = {
+        thread_id: data.threadId,
+        collated_summary: data.collatedSummary,
+        html_content: data.htmlContent || null,
+        collation_model: data.collationModel,
+        articles_summarized: data.articlesSummarized,
+        langsmith_run_id: data.langsmithRunId
+      };
+
       const { error } = await this.supabase
         .from('daily_summaries')
-        .insert({
-          thread_id: data.threadId,
-          collated_summary: data.collatedSummary,
-          html_content: data.htmlContent || null,
-          collation_model: data.collationModel,
-          articles_summarized: data.articlesSummarized,
-          langsmith_run_id: data.langsmithRunId
-        });
+        .insert(summaryData);
 
       if (error) {
-        throw new Error(`Failed to save daily summary: ${error.message}`);
-      }
+        // If duplicate key error (thread_id already exists), update instead
+        if (error.code === '23505' || error.message.includes('duplicate key')) {
+          console.log(`⚠️ Daily summary already exists for thread ${data.threadId}, updating existing record...`);
+          
+          const { error: updateError } = await this.supabase
+            .from('daily_summaries')
+            .update(summaryData)
+            .eq('thread_id', data.threadId);
 
-      console.log(`✅ Saved daily summary for thread ${data.threadId}`);
+          if (updateError) {
+            throw new Error(`Failed to update daily summary: ${updateError.message}`);
+          }
+
+          console.log(`✅ Updated daily summary for thread ${data.threadId}`);
+        } else {
+          throw new Error(`Failed to save daily summary: ${error.message}`);
+        }
+      } else {
+        console.log(`✅ Saved daily summary for thread ${data.threadId}`);
+      }
 
     } catch (error) {
       console.error('Error saving daily summary:', error);
