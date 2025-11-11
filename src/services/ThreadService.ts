@@ -130,7 +130,7 @@ export class ThreadService {
         if (error.code === '23505' || error.message.includes('duplicate key')) {
           console.log(`⚠️ Thread already exists for run_date: ${params.run_date}, fetching existing thread...`);
           
-          const existingThread = await this.getThreadByDate(params.run_date);
+          const existingThread = await this.getThreadByDate(params.run_date, userId);
           
           if (existingThread) {
             console.log(`✅ Found existing thread: ${existingThread.id} for run_date: ${params.run_date}`);
@@ -158,7 +158,7 @@ export class ThreadService {
               }
               
               // Fetch the updated thread
-              return (await this.getThread(existingThread.id)) || existingThread;
+              return (await this.getThread(existingThread.id, userId)) || existingThread;
             }
             
             return existingThread;
