@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
@@ -12,7 +12,8 @@ interface Summary {
   date: string;
   articlesCount: number;
   status: string;
-  content?: string;
+  textContent?: string;
+  htmlContent?: string | null;
   langsmithRunId?: string;
   langsmithUrl?: string;
   articles?: Array<{
@@ -57,80 +58,146 @@ export default function DailySummaries() {
     loadSummaries();
   }, []);
 
-  async function loadSummaries() {
-    try {
-      // Fetch threads from API
-      const response = await fetch('/api/threads?limit=20');
-      
-      let transformedSummaries: Summary[] = [];
-      
-      if (response.ok) {
-        const result = await response.json();
-        const threads = result.data || [];
-        
-        // Transform threads to summaries
-        transformedSummaries = threads.map((thread: any) => ({
-          id: thread.id,
-          date: thread.run_date,
-          articlesCount: thread.articles_processed || 0,
-          status: thread.email_sent ? 'Email Sent' : thread.status === 'failed' ? 'Failed' : 'Running'
-        }));
-        
-        setSummaries(transformedSummaries);
-      } else {
-        // Fallback to mock data
-        transformedSummaries = [
-          { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
-          { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
-          { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
-          { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
-          { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
-        ];
-        setSummaries(transformedSummaries);
-      }
+  function determineStatus(thread: any): string {
+    if (thread.status === 'failed') return 'Failed';
+    if (thread.status === 'completed') {
+      return thread.email_sent ? 'Email Sent' : 'Completed';
+    }
+    if (thread.status === 'running') return 'Running';
+    return 'Unknown';
+  }
 
-      // Auto-select summary if threadId is in query params
-      const threadId = searchParams.get('threadId');
-      if (threadId && transformedSummaries.length > 0) {
-        const summaryToSelect = transformedSummaries.find(s => s.id === threadId);
-        if (summaryToSelect) {
-          await selectSummary(summaryToSelect);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load summaries:', error);
-    } finally {
-      setLoading(false);
+  function getArticleCount(thread: any): number {
+    const processed = thread.articles_processed;
+    const found = thread.articles_found;
+    const metadataCount = thread.metadata?.articles?.length;
+
+    return (
+      (typeof processed === 'number' && processed > 0 ? processed : undefined) ??
+      (typeof found === 'number' && found > 0 ? found : undefined) ??
+      (typeof metadataCount === 'number' && metadataCount > 0 ? metadataCount : undefined) ??
+      0
+    );
+  }
+
+  function getStatusBadgeClasses(status: string): string {
+    switch (status) {
+      case 'Email Sent':
+        return 'bg-green-900 text-green-300';
+      case 'Completed':
+        return 'bg-blue-900 text-blue-300';
+      case 'Running':
+        return 'bg-amber-900 text-amber-200';
+      case 'Failed':
+        return 'bg-red-900 text-red-300';
+      default:
+        return 'bg-slate-700 text-slate-300';
     }
   }
+
+    async function loadSummaries() {
+      try {
+        // Fetch threads from API
+        const response = await fetch('/api/threads?limit=20');
+
+        let transformedSummaries: Summary[] = [];
+
+        if (response.ok) {
+          const result = await response.json();
+          const threads = result.data || [];
+
+          // Transform threads to summaries
+          transformedSummaries = threads.map((thread: any) => ({
+            id: thread.id,
+            date: thread.run_date,
+            articlesCount: getArticleCount(thread),
+            status: determineStatus(thread)
+          }));
+
+          setSummaries(transformedSummaries);
+        } else {
+          // Fallback to mock data
+          transformedSummaries = [
+            { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
+            { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
+            { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
+            { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
+            { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
+          ];
+          setSummaries(transformedSummaries);
+        }
+
+        // Auto-select summary if threadId is in query params
+        const threadId = searchParams.get('threadId');
+        if (threadId && transformedSummaries.length > 0) {
+          const summaryToSelect = transformedSummaries.find(s => s.id === threadId);
+          if (summaryToSelect) {
+            await selectSummary(summaryToSelect);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load summaries:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
 
   async function selectSummary(summary: Summary) {
     try {
       // Fetch full summary content from API
       const response = await fetch(`/api/summaries?threadId=${summary.id}`);
-      
+
       if (response.ok) {
         const result = await response.json();
         const data: DailySummaryData = result.data;
-        
+
         if (data.dailySummary) {
-          setSelectedSummary({
-            ...summary,
-            content: data.dailySummary.collated_summary,
-            langsmithRunId: data.dailySummary.langsmith_run_id,
-            langsmithUrl: data.dailySummary.langsmith_url,
-            articles: data.articleSummaries.map((article: any) => ({
+          const articles = data.articleSummaries.map((article: any) => {
+            const snippetSource = article.summary || '';
+            const snippet =
+              snippetSource.length > 0
+                ? `${snippetSource.substring(0, 150)}${snippetSource.length > 150 ? '...' : ''}`
+                : 'No summary available.';
+
+            return {
               title: article.article_title || `Article ${article.article_id}`,
               url: article.article_url || '#',
-              snippet: article.summary.substring(0, 150) + '...',
+              snippet,
               score: article.article_relevancy_score ? Math.round(article.article_relevancy_score * 5) : 4 // Convert 0-1 score to 0-5 scale
-            }))
+            };
           });
+
+          const articlesCount =
+            data.dailySummary.articles_summarized ??
+            (articles.length > 0 ? articles.length : summary.articlesCount);
+
+          const updatedSummary: Summary = {
+            ...summary,
+            textContent: data.dailySummary.collated_summary,
+            htmlContent: data.dailySummary.html_content,
+            langsmithRunId: data.dailySummary.langsmith_run_id,
+            langsmithUrl: data.dailySummary.langsmith_url,
+            articles,
+            articlesCount
+          };
+
+          setSelectedSummary(updatedSummary);
+          setSummaries(prev =>
+            prev.map(item =>
+              item.id === summary.id
+                ? {
+                    ...item,
+                    articlesCount: updatedSummary.articlesCount
+                  }
+                : item
+            )
+          );
         } else {
           // No summary data available
           setSelectedSummary({
             ...summary,
-            content: 'No summary data available for this thread.',
+            textContent: 'No summary data available for this thread.',
+            htmlContent: null,
             articles: []
           });
         }
@@ -138,7 +205,8 @@ export default function DailySummaries() {
         console.error('Failed to fetch summary details');
         setSelectedSummary({
           ...summary,
-          content: 'Failed to load summary content.',
+          textContent: 'Failed to load summary content.',
+          htmlContent: null,
           articles: []
         });
       }
@@ -146,16 +214,95 @@ export default function DailySummaries() {
       console.error('Error loading summary details:', error);
       setSelectedSummary({
         ...summary,
-        content: 'Error loading summary content.',
+        textContent: 'Error loading summary content.',
+        htmlContent: null,
         articles: []
       });
     }
   }
 
-  function copyContent(type: 'html' | 'text') {
-    if (selectedSummary?.content) {
-      navigator.clipboard.writeText(selectedSummary.content);
+  function textToHtml(content: string) {
+    const escaped = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return escaped.replace(/\n/g, '<br />');
+  }
+
+  function getDisplayFormat(): 'html' | 'text' {
+    if (format === 'auto') {
+      return selectedSummary?.htmlContent ? 'html' : 'text';
+    }
+    return format;
+  }
+
+  const displayFormat = getDisplayFormat();
+
+  const renderedContent = useMemo(() => {
+    if (!selectedSummary) {
+      return { type: 'text' as const, content: 'No content available.' };
+    }
+
+    if (displayFormat === 'html') {
+      if (selectedSummary.htmlContent && selectedSummary.htmlContent.trim().length > 0) {
+        return { type: 'html' as const, content: selectedSummary.htmlContent };
+      }
+      if (selectedSummary.textContent) {
+        return { type: 'html' as const, content: textToHtml(selectedSummary.textContent) };
+      }
+      return { type: 'html' as const, content: '<p>No content available.</p>' };
+    }
+
+    if (selectedSummary.textContent) {
+      return { type: 'text' as const, content: selectedSummary.textContent };
+    }
+
+    if (selectedSummary.htmlContent) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(selectedSummary.htmlContent, 'text/html');
+      return { type: 'text' as const, content: doc.body.textContent || 'No content available.' };
+    }
+
+    return { type: 'text' as const, content: 'No content available.' };
+  }, [selectedSummary, displayFormat]);
+
+  async function copyContent(type: 'html' | 'text') {
+    if (!selectedSummary) return;
+
+    let clipboardContent = '';
+
+    if (type === 'html') {
+      if (selectedSummary.htmlContent && selectedSummary.htmlContent.trim().length > 0) {
+        clipboardContent = selectedSummary.htmlContent;
+      } else if (selectedSummary.textContent) {
+        clipboardContent = textToHtml(selectedSummary.textContent);
+      }
+    } else {
+      if (selectedSummary.textContent) {
+        clipboardContent = selectedSummary.textContent;
+      } else if (selectedSummary.htmlContent) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(selectedSummary.htmlContent, 'text/html');
+        clipboardContent = doc.body.textContent || '';
+      }
+    }
+
+    if (clipboardContent.trim().length === 0) {
+      alert('No content available to copy.');
+      return;
+    }
+
+    if (!navigator?.clipboard?.writeText) {
+      alert('Clipboard API is not available in this browser.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(clipboardContent);
       alert(`${type.toUpperCase()} copied to clipboard!`);
+    } catch (err) {
+      console.error('Failed to copy content:', err);
+      alert('Failed to copy content to clipboard.');
     }
   }
 
@@ -200,11 +347,14 @@ export default function DailySummaries() {
                       Daily Summary - {summary.date}
                     </h3>
                     <p className="text-slate-400 text-xs mb-2">{summary.articlesCount} articles</p>
-                    <span className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded-full">
+                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeClasses(summary.status)}`}>
                       {summary.status}
                     </span>
                   </div>
-                ))}
+                  ))}
+                  {summaries.length === 0 && (
+                    <div className="text-slate-400 text-sm text-center py-8">No summaries available.</div>
+                  )}
               </div>
             </Card>
           </div>
@@ -218,6 +368,12 @@ export default function DailySummaries() {
                     Daily Summary - {selectedSummary.date}
                   </h2>
                   <p className="text-slate-400 text-sm">{selectedSummary.date}</p>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-2">
+                    <span>{selectedSummary.articlesCount} articles</span>
+                    <span className={`px-2 py-1 rounded-full ${getStatusBadgeClasses(selectedSummary.status)}`}>
+                      {selectedSummary.status}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mb-4 flex gap-2">
@@ -284,16 +440,27 @@ export default function DailySummaries() {
                         </button>
                       </div>
                     </div>
-
                     <div className="text-slate-300 text-sm mb-2">
-                      <span className="font-semibold">{format === 'auto' ? 'HTML' : format.toUpperCase()}</span>
-                      <span className="text-slate-500 ml-2">Auto-detected {format === 'auto' ? 'HTML' : format.toUpperCase()}</span>
+                      <span className="font-semibold">
+                        {displayFormat === 'html' ? 'HTML' : 'Text'}
+                      </span>
+                      <span className="text-slate-500 ml-2">
+                        {format === 'auto'
+                          ? `Auto-detected ${displayFormat === 'html' ? 'HTML' : 'Text'}`
+                          : `Manually selected ${format.toUpperCase()}`}
+                      </span>
                     </div>
 
-                    <div 
-                      className="bg-slate-800 rounded p-4 text-slate-300 text-sm overflow-auto max-h-96"
-                      dangerouslySetInnerHTML={{ __html: selectedSummary.content || 'No content available' }}
-                    />
+                    {renderedContent.type === 'html' ? (
+                      <div
+                        className="bg-slate-800 rounded p-4 text-slate-300 text-sm overflow-auto max-h-96 prose prose-invert prose-sm"
+                        dangerouslySetInnerHTML={{ __html: renderedContent.content }}
+                      />
+                    ) : (
+                      <div className="bg-slate-800 rounded p-4 text-slate-300 text-sm overflow-auto max-h-96 whitespace-pre-wrap leading-relaxed">
+                        {renderedContent.content}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -301,7 +468,7 @@ export default function DailySummaries() {
                 {selectedSummary.articles && selectedSummary.articles.length > 0 && (
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-3">
-                      Articles ({selectedSummary.articles.length})
+                      Articles ({selectedSummary.articlesCount ?? selectedSummary.articles.length})
                     </h3>
                     <div className="space-y-3">
                       {selectedSummary.articles.map((article, idx) => (
@@ -326,6 +493,11 @@ export default function DailySummaries() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+                {(!selectedSummary.articles || selectedSummary.articles.length === 0) && (
+                  <div className="text-slate-400 text-sm text-center py-8">
+                    No article summaries available for this run.
                   </div>
                 )}
               </Card>
