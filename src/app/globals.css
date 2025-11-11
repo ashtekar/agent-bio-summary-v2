@@ -17,3 +17,93 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.rich-text {
+  color: #e2e8f0;
+  line-height: 1.7;
+  font-size: 0.95rem;
+}
+
+.rich-text h1,
+.rich-text h2,
+.rich-text h3,
+.rich-text h4,
+.rich-text h5,
+.rich-text h6 {
+  color: #f8fafc;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.rich-text h1 {
+  font-size: 1.5rem;
+}
+
+.rich-text h2 {
+  font-size: 1.35rem;
+}
+
+.rich-text h3 {
+  font-size: 1.2rem;
+}
+
+.rich-text p {
+  margin-bottom: 0.75rem;
+}
+
+.rich-text strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.rich-text em {
+  font-style: italic;
+}
+
+.rich-text ul,
+.rich-text ol {
+  margin-left: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.rich-text ul {
+  list-style-type: disc;
+}
+
+.rich-text ol {
+  list-style-type: decimal;
+}
+
+.rich-text li {
+  margin-bottom: 0.35rem;
+}
+
+.rich-text a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.rich-text blockquote {
+  border-left: 4px solid #38bdf8;
+  padding-left: 0.75rem;
+  color: #cbd5f5;
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+.rich-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background-color: rgba(148, 163, 184, 0.15);
+  padding: 0.125rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
+.rich-text pre {
+  background-color: rgba(15, 23, 42, 0.75);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+}
