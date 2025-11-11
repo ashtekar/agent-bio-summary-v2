@@ -148,20 +148,22 @@ export async function POST(request: NextRequest) {
             context.userId = userId;
             console.log(`✅ Found existing thread after fallback: ${threadId} for daily summary ${runDate}`);
           } else {
-            // Last resort: generate UUID but log warning that summaries may fail
-            threadId = randomUUID();
-            context.threadId = threadId;
-            context.userId = userId;
-            console.error(`⚠️ CRITICAL: Using non-existent fallback thread UUID: ${threadId}. Summaries may fail with foreign key violations.`);
+            // Thread should exist but query returned null - cannot proceed safely
+            console.error(`❌ CRITICAL: Thread should exist for run_date ${runDate} but query returned null. Cannot proceed without valid thread.`);
+            throw new Error(`Thread should exist for run_date ${runDate} but could not be retrieved. Original error: ${threadError instanceof Error ? threadError.message : String(threadError)}, Fallback error: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
           }
         } catch (fetchError) {
-          // Last resort: generate UUID but log warning that summaries may fail
-          threadId = randomUUID();
-          context.threadId = threadId;
-          context.userId = userId;
-          console.error(`⚠️ CRITICAL: Using non-existent fallback thread UUID: ${threadId}. Summaries may fail with foreign key violations. Error: ${fetchError}`);
+          // Cannot proceed without a valid thread - throw error to prevent foreign key violations
+          console.error(`❌ CRITICAL: Cannot get or create thread for run_date ${runDate}. Cannot proceed without valid thread. Error: ${fetchError}`);
+          throw new Error(`Failed to get or create thread for daily summary. Original error: ${threadError instanceof Error ? threadError.message : String(threadError)}, Fetch error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
         }
       }
+    }
+
+    // Final validation: ensure we have a valid thread before proceeding
+    if (!thread || !threadId) {
+      console.error(`❌ CRITICAL: No valid thread obtained for run_date ${runDate}`);
+      throw new Error('Failed to obtain valid thread for daily summary execution');
     }
 
     // Create and execute agent (based on feature flag)
