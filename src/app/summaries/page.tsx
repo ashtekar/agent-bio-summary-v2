@@ -450,10 +450,9 @@ export default function DailySummaries() {
                           : `Manually selected ${format.toUpperCase()}`}
                       </span>
                     </div>
-
                     {renderedContent.type === 'html' ? (
                       <div
-                        className="bg-slate-800 rounded p-4 text-slate-300 text-sm overflow-auto max-h-96 prose prose-invert prose-sm"
+                        className="bg-slate-800 rounded p-4 text-sm overflow-auto max-h-96 rich-text"
                         dangerouslySetInnerHTML={{ __html: renderedContent.content }}
                       />
                     ) : (
