@@ -112,12 +112,56 @@ export async function POST(request: NextRequest) {
       
       console.log(`✅ Using thread: ${threadId} for daily summary ${runDate}`);
     } catch (threadError) {
-      console.warn('Failed to get or create thread, generating fallback UUID:', threadError);
-      // Generate valid UUID as fallback to ensure agent always has valid threadId
-      threadId = randomUUID();
-      context.threadId = threadId;
-      context.userId = userId;
-      console.log(`✅ Using fallback thread: ${threadId} for daily summary ${runDate}`);
+      console.warn('Failed to get or create thread, attempting fallback creation:', threadError);
+      
+      // Try to create thread directly as fallback
+      // This ensures the thread exists in the database for foreign key constraints
+      try {
+        thread = await threadService.createThread({
+          run_date: runDate,
+          metadata: {
+            sessionId: `session_${Date.now()}`,
+            model: context.systemSettings.llmModel,
+            relevancyThreshold: context.systemSettings.relevancyThreshold || 0.2,
+            searchQuery: context.searchSettings.query,
+            maxResults: context.searchSettings.maxResults,
+            sources: context.searchSettings.sources,
+            recipients: context.recipients.map((r: { email: string }) => r.email),
+            fallback: true // Mark as fallback for debugging
+          }
+        }, userId);
+        
+        threadId = thread.id;
+        context.threadId = threadId;
+        context.userId = userId;
+        console.log(`✅ Created fallback thread: ${threadId} for daily summary ${runDate}`);
+      } catch (fallbackError) {
+        // If fallback creation also fails (e.g., duplicate key), try to fetch existing thread one more time
+        console.warn('Fallback thread creation also failed, attempting to fetch existing thread:', fallbackError);
+        
+        try {
+          const existingThread = await threadService.getThreadByDate(runDate, userId);
+          if (existingThread) {
+            thread = existingThread;
+            threadId = existingThread.id;
+            context.threadId = threadId;
+            context.userId = userId;
+            console.log(`✅ Found existing thread after fallback: ${threadId} for daily summary ${runDate}`);
+          } else {
+            // Last resort: generate UUID but log warning that summaries may fail
+            threadId = randomUUID();
+            context.threadId = threadId;
+            context.userId = userId;
+            console.error(`⚠️ CRITICAL: Using non-existent fallback thread UUID: ${threadId}. Summaries may fail with foreign key violations.`);
+          }
+        } catch (fetchError) {
+          // Last resort: generate UUID but log warning that summaries may fail
+          threadId = randomUUID();
+          context.threadId = threadId;
+          context.userId = userId;
+          console.error(`⚠️ CRITICAL: Using non-existent fallback thread UUID: ${threadId}. Summaries may fail with foreign key violations. Error: ${fetchError}`);
+        }
+      }
     }
 
     // Create and execute agent (based on feature flag)
