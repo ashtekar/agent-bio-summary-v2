@@ -787,15 +787,19 @@ export class LLMDrivenBioSummaryAgent {
   private updateContextFromToolResult(toolName: string, result: any): void {
     switch (toolName) {
       case 'searchWeb':
-        // Search results are handled by extractArticles
+        if (Array.isArray(result)) {
+          this.context.foundArticles = result;
+        }
         this.context.lastSuccessfulStep = 'search';
         break;
         
       case 'extractScoreAndStoreArticles':
         // Combined tool updates all three context fields at once
-        this.context.foundArticles = result;
         this.context.filteredArticles = result;
         this.context.storedArticles = result;
+        if (!this.context.foundArticles || this.context.foundArticles.length === 0) {
+          this.context.foundArticles = result;
+        }
         this.context.lastSuccessfulStep = 'processing';
         console.log(`[Context] Updated after combined tool: ${result.length} articles extracted, scored, and stored`);
         break;
@@ -845,11 +849,17 @@ export class LLMDrivenBioSummaryAgent {
   private generateFinalResult(): ToolResult {
     const success = this.isTaskComplete();
     const executionTime = Date.now() - this.context.startTime.getTime();
+    const articlesFound = Math.max(
+      this.context.foundArticles?.length || 0,
+      this.context.filteredArticles?.length || 0,
+      this.context.storedArticles?.length || 0
+    );
     
     return {
       success,
       data: {
         sessionId: this.context.sessionId,
+        articlesFound,
         articlesProcessed: this.context.storedArticles.length,
         summariesGenerated: this.context.summaries.length,
         finalSummary: this.context.finalSummary,

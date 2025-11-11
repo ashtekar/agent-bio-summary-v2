@@ -23,6 +23,93 @@ interface RecentSummary {
   status: 'completed' | 'failed' | 'running';
 }
 
+type ThreadApi = {
+  id: string;
+  run_date: string;
+  status: 'running' | 'completed' | 'failed';
+  articles_found: number | null;
+  articles_processed: number | null;
+  email_sent?: boolean;
+  started_at?: string | null;
+  completed_at?: string | null;
+  metadata?: Record<string, any>;
+};
+
+function formatRelativeTime(value?: string | null): string {
+  if (!value) return 'Never';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Never';
+
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 0) return 'Scheduled';
+
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  if (diffMinutes <= 1) return 'Just now';
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  }
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 4) {
+    return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
+  }
+
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) {
+    return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
+  }
+
+  const diffYears = Math.floor(diffDays / 365);
+  return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
+}
+
+function formatAbsoluteDateTime(value?: string | Date | null, options: { includeTime?: boolean } = {}): string {
+  if (!value) return 'Not scheduled';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not scheduled';
+
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    ...(options.includeTime !== false && {
+      hour: 'numeric',
+      minute: '2-digit'
+    })
+  });
+
+  const formatted = formatter.format(date);
+  return options.includeTime === false ? formatted : `${formatted}`;
+}
+
+function computeNextRunDisplay(thread?: ThreadApi): string {
+  if (!thread) return 'Not scheduled';
+
+  const scheduledFromMetadata = thread.metadata?.nextScheduledRun || thread.metadata?.next_run_at;
+  if (scheduledFromMetadata) {
+    return formatAbsoluteDateTime(scheduledFromMetadata);
+  }
+
+  const reference = thread.completed_at || thread.started_at;
+  if (!reference) return 'Not scheduled';
+
+  const base = new Date(reference);
+  if (Number.isNaN(base.getTime())) return 'Not scheduled';
+
+  const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+  return formatAbsoluteDateTime(next);
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { isAdmin, user } = useAuth();
@@ -31,65 +118,63 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  async function loadDashboardData() {
+  const loadDashboardData = async () => {
     try {
-      // Fetch recent threads from API
-      const response = await fetch('/api/threads?limit=5');
-      
+      const response = await fetch('/api/threads?limit=20', { cache: 'no-store' });
+
       if (response.ok) {
         const result = await response.json();
-        const threads = result.data || [];
-        
-        // Transform threads to recent summaries
-        const summaries = threads.map((thread: any) => ({
-          id: thread.id,
-          date: thread.run_date,
-          articlesCount: thread.articles_processed || 0,
-          status: thread.status
-        }));
-        
-        setRecentSummaries(summaries);
-        
-        // Calculate stats from threads
-        const lastThread = threads[0];
-        if (lastThread) {
-          const lastRunDate = new Date(lastThread.started_at);
-          const hoursAgo = Math.floor((Date.now() - lastRunDate.getTime()) / (1000 * 60 * 60));
-          
+        const rawThreads: ThreadApi[] = Array.isArray(result.data) ? result.data : [];
+        const threads = rawThreads.sort((a, b) => {
+          const aTime = new Date(a.completed_at || a.started_at || a.run_date).getTime();
+          const bTime = new Date(b.completed_at || b.started_at || b.run_date).getTime();
+          return bTime - aTime;
+        });
+
+        setRecentSummaries(
+          threads.map((thread) => ({
+            id: thread.id,
+            date: formatAbsoluteDateTime(thread.completed_at || thread.run_date, { includeTime: false }),
+            articlesCount: Number(thread.articles_processed ?? 0),
+            status: thread.status
+          }))
+        );
+
+        const lastCompletedThread = threads.find((thread) => thread.status === 'completed');
+        const mostRecentThread = threads[0];
+
+        if (lastCompletedThread || mostRecentThread) {
+          const referenceThread = lastCompletedThread || mostRecentThread;
+          const referenceTimestamp = referenceThread.completed_at || referenceThread.started_at;
+
           setStats({
-            lastRun: `${hoursAgo} hours ago`,
-            articlesFound: lastThread.articles_found || 0,
-            summariesGenerated: threads.filter((t: any) => t.status === 'completed').length,
-            nextScheduledRun: '15th October 2025 at 8:00 AM'
+            lastRun: formatRelativeTime(referenceTimestamp),
+            articlesFound: Number(referenceThread.articles_found ?? 0),
+            summariesGenerated: Number(referenceThread.articles_processed ?? 0),
+            nextScheduledRun: computeNextRunDisplay(referenceThread)
           });
         } else {
-          // No threads yet - use defaults
           setStats({
             lastRun: 'Never',
             articlesFound: 0,
             summariesGenerated: 0,
-            nextScheduledRun: '15th October 2025 at 8:00 AM'
+            nextScheduledRun: 'Not scheduled'
           });
         }
       } else {
-        // Fallback to mock data if API fails
         setStats({
           lastRun: '10 hours ago',
           articlesFound: 2,
           summariesGenerated: 23,
-          nextScheduledRun: '15th October 2025 at 8:00 AM'
+          nextScheduledRun: 'Not scheduled'
         });
 
         setRecentSummaries([
-          { id: '1', date: '2025-10-09', articlesCount: 10, status: 'completed' },
-          { id: '2', date: '2025-10-08', articlesCount: 8, status: 'completed' },
-          { id: '3', date: '2025-10-07', articlesCount: 5, status: 'completed' },
-          { id: '4', date: '2025-10-06', articlesCount: 12, status: 'completed' },
-          { id: '5', date: '2025-10-05', articlesCount: 7, status: 'completed' },
+          { id: '1', date: formatAbsoluteDateTime('2025-10-09', { includeTime: false }), articlesCount: 10, status: 'completed' },
+          { id: '2', date: formatAbsoluteDateTime('2025-10-08', { includeTime: false }), articlesCount: 8, status: 'completed' },
+          { id: '3', date: formatAbsoluteDateTime('2025-10-07', { includeTime: false }), articlesCount: 5, status: 'completed' },
+          { id: '4', date: formatAbsoluteDateTime('2025-10-06', { includeTime: false }), articlesCount: 12, status: 'completed' },
+          { id: '5', date: formatAbsoluteDateTime('2025-10-05', { includeTime: false }), articlesCount: 7, status: 'completed' }
         ]);
       }
     } catch (error) {
@@ -97,7 +182,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
   async function runNow() {
     setRunning(true);
