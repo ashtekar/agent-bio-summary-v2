@@ -67,17 +67,35 @@ export default function DailySummaries() {
     return 'Unknown';
   }
 
-  function getArticleCount(thread: any): number {
-    const processed = thread.articles_processed;
-    const found = thread.articles_found;
-    const metadataCount = thread.metadata?.articles?.length;
+  function getArticleCount(thread: any, dailySummaryCount?: number): number {
+    const normalizeNonNegative = (value: unknown): number | undefined => {
+      if (value === null || value === undefined) return undefined;
+      const numeric = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
+    };
 
-    return (
-      (typeof processed === 'number' && processed > 0 ? processed : undefined) ??
-      (typeof found === 'number' && found > 0 ? found : undefined) ??
-      (typeof metadataCount === 'number' && metadataCount > 0 ? metadataCount : undefined) ??
-      0
-    );
+    const normalizePositive = (value: unknown): number | undefined => {
+      const numeric = normalizeNonNegative(value);
+      return typeof numeric === 'number' && numeric > 0 ? numeric : undefined;
+    };
+
+    const dailyCount = normalizeNonNegative(dailySummaryCount);
+    if (typeof dailyCount === 'number') {
+      return dailyCount;
+    }
+
+    const processed = normalizePositive(thread.articles_processed);
+    if (typeof processed === 'number') {
+      return processed;
+    }
+
+    const found = normalizePositive(thread.articles_found);
+    if (typeof found === 'number') {
+      return found;
+    }
+
+    const metadataCount = normalizePositive(thread.metadata?.articles?.length);
+    return metadataCount ?? 0;
   }
 
   function getStatusBadgeClasses(status: string): string {
@@ -95,52 +113,77 @@ export default function DailySummaries() {
     }
   }
 
-    async function loadSummaries() {
-      try {
-        // Fetch threads from API
-        const response = await fetch('/api/threads?limit=20');
+  async function loadSummaries() {
+    try {
+      const [threadsResponse, dailySummariesResponse] = await Promise.all([
+        fetch('/api/threads?limit=20'),
+        fetch('/api/summaries?limit=20')
+      ]);
 
-        let transformedSummaries: Summary[] = [];
+      const dailySummaryCounts = new Map<string, number>();
 
-        if (response.ok) {
-          const result = await response.json();
-          const threads = result.data || [];
+      if (dailySummariesResponse.ok) {
+        try {
+          const dailySummariesResult = await dailySummariesResponse.json();
+          const dailySummaries = dailySummariesResult.data || [];
+          dailySummaries.forEach((summary: any) => {
+            const normalizedCount = Number(summary?.articles_summarized);
+            if (
+              summary?.thread_id &&
+              Number.isFinite(normalizedCount) &&
+              normalizedCount >= 0
+            ) {
+              dailySummaryCounts.set(summary.thread_id, normalizedCount);
+            }
+          });
+        } catch (error) {
+          console.warn('Failed to parse daily summaries response for article counts:', error);
+        }
+      } else {
+        console.warn('Failed to fetch daily summaries for article counts');
+      }
 
-          // Transform threads to summaries
-          transformedSummaries = threads.map((thread: any) => ({
+      let transformedSummaries: Summary[] = [];
+
+      if (threadsResponse.ok) {
+        const result = await threadsResponse.json();
+        const threads = result.data || [];
+
+        transformedSummaries = threads.map((thread: any) => {
+          const countFromDailySummary = dailySummaryCounts.get(thread.id);
+          return {
             id: thread.id,
             date: thread.run_date,
-            articlesCount: getArticleCount(thread),
+            articlesCount: getArticleCount(thread, countFromDailySummary),
             status: determineStatus(thread)
-          }));
+          };
+        });
 
-          setSummaries(transformedSummaries);
-        } else {
-          // Fallback to mock data
-          transformedSummaries = [
-            { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
-            { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
-            { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
-            { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
-            { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
-          ];
-          setSummaries(transformedSummaries);
-        }
-
-        // Auto-select summary if threadId is in query params
-        const threadId = searchParams.get('threadId');
-        if (threadId && transformedSummaries.length > 0) {
-          const summaryToSelect = transformedSummaries.find(s => s.id === threadId);
-          if (summaryToSelect) {
-            await selectSummary(summaryToSelect);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load summaries:', error);
-      } finally {
-        setLoading(false);
+        setSummaries(transformedSummaries);
+      } else {
+        transformedSummaries = [
+          { id: '1', date: '2025-10-09', articlesCount: 2, status: 'Email Sent' },
+          { id: '2', date: '2025-10-08', articlesCount: 10, status: 'Email Sent' },
+          { id: '3', date: '2025-10-07', articlesCount: 10, status: 'Email Sent' },
+          { id: '4', date: '2025-10-06', articlesCount: 1, status: 'Email Sent' },
+          { id: '5', date: '2025-10-05', articlesCount: 8, status: 'Email Sent' },
+        ];
+        setSummaries(transformedSummaries);
       }
+
+      const threadId = searchParams.get('threadId');
+      if (threadId && transformedSummaries.length > 0) {
+        const summaryToSelect = transformedSummaries.find(s => s.id === threadId);
+        if (summaryToSelect) {
+          await selectSummary(summaryToSelect);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load summaries:', error);
+    } finally {
+      setLoading(false);
     }
+  }
 
   async function selectSummary(summary: Summary) {
     try {
