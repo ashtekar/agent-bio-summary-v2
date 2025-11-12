@@ -9,7 +9,7 @@ import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts
 import { allLangChainTools, setToolSessionId } from '@/tools/LangChainTools';
 import { AgentContext, ToolResult } from '@/types/agent';
 import { langchainIntegration } from '@/lib/langchain';
-import { toolStateManager } from '@/tools/ToolState';
+import { toolStateManager, ToolState } from '@/tools/ToolState';
 import { randomUUID } from 'crypto';
 
 export class LangChainBioSummaryAgent {
@@ -219,53 +219,53 @@ Use the available tools in the proper sequence to complete the task.`;
         hasIntermediateSteps: !!(result.intermediateSteps && result.intermediateSteps.length > 0)
       });
 
-      // Check if tools were called
-      if (!result.intermediateSteps || result.intermediateSteps.length === 0) {
-        console.warn('No tools were executed - agent may have stopped prematurely');
-      }
-
-      // Update parent trace with outputs
-      if (this.parentRunId) {
-        await langchainIntegration.updateTrace(this.parentRunId, {
-          success: true,
-          output: result.output,
-          steps: result.intermediateSteps?.length || 0
-        });
-      }
-
-      // Clean up tool state
-      toolStateManager.clearState(this.context.sessionId, this.context.userId);
-
-      // Process and return result
-      return this.processAgentResult(result);
-
-    } catch (error) {
-      console.error('Agent execution failed:', error);
-      
-      // Update parent trace with error
-      if (this.parentRunId) {
-        await langchainIntegration.updateTrace(this.parentRunId, {
-          success: false,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-
-      // Clean up tool state even on error
-      toolStateManager.clearState(this.context.sessionId, this.context.userId);
-
-      this.context.errors.push(error as Error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Agent execution failed',
-        metadata: {
-          sessionId: this.context.sessionId,
-          executionTime: Date.now() - this.context.startTime.getTime(),
-          errors: this.context.errors.length,
-          cost: 0,
-          tokens: 0
+        // Check if tools were called
+        if (!result.intermediateSteps || result.intermediateSteps.length === 0) {
+          console.warn('No tools were executed - agent may have stopped prematurely');
         }
-      };
-    }
+
+        // Update parent trace with outputs
+        if (this.parentRunId) {
+          await langchainIntegration.updateTrace(this.parentRunId, {
+            success: true,
+            output: result.output,
+            steps: result.intermediateSteps?.length || 0
+          });
+        }
+
+        const finalToolState = this.getToolStateSnapshot();
+        const processedResult = this.processAgentResult(result, finalToolState);
+
+        toolStateManager.clearState(this.context.sessionId, this.context.userId);
+
+        return processedResult;
+
+      } catch (error) {
+        console.error('Agent execution failed:', error);
+        
+        // Update parent trace with error
+        if (this.parentRunId) {
+          await langchainIntegration.updateTrace(this.parentRunId, {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+
+        toolStateManager.clearState(this.context.sessionId, this.context.userId);
+
+        this.context.errors.push(error as Error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Agent execution failed',
+          metadata: {
+            sessionId: this.context.sessionId,
+            executionTime: Date.now() - this.context.startTime.getTime(),
+            errors: this.context.errors.length,
+            cost: 0,
+            tokens: 0
+          }
+        };
+      }
   }
 
 
@@ -289,19 +289,108 @@ Use the available tools in the proper sequence to complete the task.`;
     ]);
   }
 
+  private getToolStateSnapshot(): ToolState | null {
+    const sessionId = this.context.sessionId;
+    const userId = this.context.userId;
+
+    if (!sessionId || !userId) {
+      return null;
+    }
+
+    const userSessions = toolStateManager.getUserSessions(userId);
+    if (!userSessions.includes(sessionId)) {
+      return null;
+    }
+
+    const state = toolStateManager.getState(sessionId, userId);
+
+    return {
+      ...state,
+      searchResults: state.searchResults ? [...state.searchResults] : undefined,
+      extractedArticles: state.extractedArticles ? [...state.extractedArticles] : undefined,
+      scoredArticles: state.scoredArticles ? [...state.scoredArticles] : undefined,
+      storedArticles: state.storedArticles ? [...state.storedArticles] : undefined,
+      summaries: state.summaries ? [...state.summaries] : undefined,
+      metadata: state.metadata ? { ...state.metadata } : undefined,
+      context: state.context ? { ...state.context } : undefined
+    };
+  }
+
+  private computeMetricsFromState(state: ToolState | null) {
+    const lengthOf = (value: unknown): number => (Array.isArray(value) ? value.length : 0);
+
+    if (!state) {
+      return {
+        articlesFound: 0,
+        articlesProcessed: 0,
+        summariesGenerated: 0,
+        emailSent: false
+      };
+    }
+
+    const searchResultsCount = lengthOf(state.searchResults);
+    const extractedCount = lengthOf(state.extractedArticles);
+    const storedCount = lengthOf(state.storedArticles);
+    const summariesCount = lengthOf(state.summaries);
+    const metadataCountRaw = state.metadata?.totalResults;
+    const metadataCount = Number.isFinite(Number(metadataCountRaw)) ? Number(metadataCountRaw) : 0;
+
+    const articlesFound = Math.max(searchResultsCount, extractedCount, storedCount, metadataCount);
+    const articlesProcessed = storedCount > 0 ? storedCount : Math.max(extractedCount, summariesCount);
+    const summariesGenerated = summariesCount;
+
+    const recipientsCount = Array.isArray(state.context?.recipients) ? state.context?.recipients.length : 0;
+    const emailSent =
+      summariesGenerated > 0 &&
+      recipientsCount > 0 &&
+      (typeof state.collatedSummary === 'string'
+        ? state.collatedSummary.trim().length > 0
+        : Boolean(state.collatedSummary));
+
+    return {
+      articlesFound,
+      articlesProcessed,
+      summariesGenerated,
+      emailSent
+    };
+  }
+
   /**
    * Process agent result
    */
-  private processAgentResult(result: any): ToolResult {
+  private processAgentResult(result: any, finalState: ToolState | null): ToolResult {
     const success = result.output && !result.output.includes('failed');
     const executionTime = Date.now() - this.context.startTime.getTime();
+    const metrics = this.computeMetricsFromState(finalState);
+
+    if (finalState) {
+      if (finalState.searchResults) {
+        this.context.foundArticles = finalState.searchResults as any;
+      }
+      if (finalState.scoredArticles) {
+        this.context.filteredArticles = finalState.scoredArticles as any;
+      }
+      if (finalState.storedArticles) {
+        this.context.storedArticles = finalState.storedArticles as any;
+      }
+      if (finalState.summaries) {
+        this.context.summaries = finalState.summaries as any;
+      }
+      if (typeof finalState.collatedSummary === 'string') {
+        this.context.finalSummary = finalState.collatedSummary;
+      }
+    }
 
     return {
       success,
       data: {
         output: result.output,
         intermediateSteps: result.intermediateSteps?.length || 0,
-        sessionId: this.context.sessionId
+        sessionId: this.context.sessionId,
+        articlesFound: metrics.articlesFound,
+        articlesProcessed: metrics.articlesProcessed,
+        summariesGenerated: metrics.summariesGenerated,
+        emailSent: metrics.emailSent
       },
       metadata: {
         sessionId: this.context.sessionId,
@@ -309,6 +398,10 @@ Use the available tools in the proper sequence to complete the task.`;
         model: this.context.systemSettings.llmModel,
         steps: result.intermediateSteps?.length || 0,
         agentType: 'langchain',
+        articlesFound: metrics.articlesFound,
+        articlesProcessed: metrics.articlesProcessed,
+        summariesGenerated: metrics.summariesGenerated,
+        emailSent: metrics.emailSent,
         parentRunId: this.parentRunId || undefined,
         cost: 0,
         tokens: 0

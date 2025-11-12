@@ -9,7 +9,7 @@
  * tool state is isolated per user.
  */
 
-interface ToolState {
+export interface ToolState {
   userId: string;  // User ID for isolation
   searchResults?: any[];
   extractedArticles?: any[];
