@@ -291,12 +291,12 @@ export default function Dashboard() {
           {/* Quick Actions */}
           <Card className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <AdminGuard
                 fallback={
                   <button
                     disabled
-                    className="bg-slate-700 text-slate-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
+                    className="w-full sm:w-auto bg-slate-700 text-slate-400 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
                     title="Admin access required"
                   >
                     Run Now (Admin Only)
@@ -306,14 +306,14 @@ export default function Dashboard() {
                 <button
                   onClick={runNow}
                   disabled={running}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
                 >
                   {running ? 'Running...' : 'Run Now'}
                 </button>
               </AdminGuard>
               <button
                 onClick={gradeNow}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
               >
                 Grade Now
               </button>
