@@ -11,8 +11,8 @@ The system features a complete web dashboard with multi-user authentication, rol
 ### **LLM-Driven Intelligence**
 - **LangChain AgentExecutor**: Intelligent decision-making with automatic tool orchestration
 - **Tool Calling**: Dynamic tool selection based on context and requirements
-- **Model Ensemble**: Uses fine-tuned LLM for summarization and GPT-5 for tool orchestration
-- **Context Awareness**: Maintains state throughout the entire execution process
+- **Model Ensemble**: Uses fine-tuned LLM for summarization and GPT-5.1 for tool orchestration
+- **Context Awareness**: Maintains context throughout the entire execution process
 - **Hub-Managed Prompts**: All 5 prompts versioned and managed in LangSmith Hub
 
 ### **Automated Workflow**

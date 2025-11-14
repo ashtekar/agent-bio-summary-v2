@@ -110,7 +110,7 @@ export default function SettingsPage() {
           summaryLength: summaryLengthStr,
           model: apiSettings?.systemSettings?.llmModel || 'gpt-4o',
           includeImages: true,
-          comparisonModel: 'gpt-5',
+          comparisonModel: 'gpt-5.1',
           maxTokens: apiSettings?.systemSettings?.llmMaxTokens || 300,
           temperature: apiSettings?.systemSettings?.llmTemperature || 0.5
         };
@@ -137,7 +137,7 @@ export default function SettingsPage() {
         summaryLength: 'medium',
         model: 'gpt-4o',
         includeImages: true,
-        comparisonModel: 'gpt-5',
+        comparisonModel: 'gpt-5.1',
         maxTokens: 300,
         temperature: 0.5
       });
@@ -660,7 +660,7 @@ export default function SettingsPage() {
                   disabled={!isAdmin}
                   className="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="gpt-5">GPT-5 (Latest & Most Capable)</option>
+                  <option value="gpt-5.1">GPT-5.1 (Latest & Most Capable)</option>
                   <option value="gpt-4o">GPT-4o (High Quality)</option>
                   <option value="gpt-4-turbo">GPT-4 Turbo (Balanced)</option>
                   <option value="claude-3.5-sonnet">Claude 3.5 Sonnet (Alternative)</option>

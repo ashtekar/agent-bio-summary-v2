@@ -190,55 +190,32 @@ export class LLMDrivenBioSummaryAgent {
 
       try {
         const response = await this.openai.chat.completions.create({
-          model: 'gpt-5',  // GPT-5 for superior instruction following and context adherence
+          model: 'gpt-5.1',  // GPT-5.1 for superior instruction following and context adherence
           messages,
           tools: getAllToolDefinitions().map(tool => ({
             type: 'function' as const,
             function: tool
           })),
           tool_choice: 'auto',
-          temperature: 1,  // GPT-5 only supports default temperature of 1
+          temperature: 1,  // GPT-5.1 supports default temperature of 1
+          reasoning_effort: 'medium',  // Balanced reasoning depth for complex orchestration decisions
           max_tokens: 1000
         });
 
         const message = response.choices[0]?.message;
         if (!message) {
-          console.error('[GPT-5] No response from LLM - potential GPT-5 output issue');
+          console.error('[GPT-5.1] No response from LLM - potential GPT-5.1 output issue');
           throw new Error('No response from LLM');
         }
 
-        // Enhanced GPT-5 output validation
+        // Enhanced GPT-5.1 output validation
         if (!message.content && (!message.tool_calls || message.tool_calls.length === 0)) {
-          console.error('[GPT-5] Empty response detected - GPT-5 may have output issues');
-          console.error('[GPT-5] Response details:', JSON.stringify(message, null, 2));
-          
-          // Retry with fallback model if GPT-5 fails
-          if (this.currentIteration === 1) {
-            console.warn('[GPT-5] Attempting fallback to gpt-4o-mini due to empty GPT-5 response');
-            const fallbackResponse = await this.openai.chat.completions.create({
-              model: 'gpt-4o-mini',
-              messages,
-              tools: getAllToolDefinitions().map(tool => ({
-                type: 'function' as const,
-                function: tool
-              })),
-              tool_choice: 'auto',
-              temperature: 0.3,  // gpt-4o-mini supports custom temperature
-              max_tokens: 1000
-            });
-            
-            const fallbackMessage = fallbackResponse.choices[0]?.message;
-            if (fallbackMessage && (fallbackMessage.content || fallbackMessage.tool_calls)) {
-              console.log('[GPT-5] Fallback to gpt-4o-mini successful');
-              messages.push(fallbackMessage);
-              continue;
-            }
-          }
-          
-          throw new Error('GPT-5 returned empty response and fallback failed');
+          console.error('[GPT-5.1] Empty response detected - execution cannot continue');
+          console.error('[GPT-5.1] Response details:', JSON.stringify(message, null, 2));
+          throw new Error('GPT-5.1 returned empty response - no fallback available');
         }
 
-        console.log('[GPT-5] Response received:', {
+        console.log('[GPT-5.1] Response received:', {
           hasContent: !!message.content,
           hasToolCalls: !!(message.tool_calls && message.tool_calls.length > 0),
           toolCallCount: message.tool_calls?.length || 0
@@ -415,6 +392,11 @@ export class LLMDrivenBioSummaryAgent {
    */
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
+      // Type guard: Only process function tool calls (not custom tool calls)
+      if (!('function' in toolCall) || !toolCall.function) {
+        return toolCall;
+      }
+      
       // Handle tools that might have large article data
       if (toolCall.function.name === 'extractScoreAndStoreArticles' || toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'collateSummary' || toolCall.function.name === 'sendEmail') {
         try {
@@ -663,6 +645,12 @@ export class LLMDrivenBioSummaryAgent {
 
     for (const toolCall of toolCalls) {
       try {
+        // Type guard: Only process function tool calls
+        if (!('function' in toolCall) || !toolCall.function) {
+          console.warn('Skipping non-function tool call:', toolCall);
+          continue;
+        }
+        
         // Parse tool arguments (should be valid JSON after preprocessing)
         let args;
         try {
@@ -684,12 +672,13 @@ export class LLMDrivenBioSummaryAgent {
         this.updateContextFromToolResult(toolCall.function.name, result);
 
       } catch (error) {
-        console.error(`Tool execution failed for ${toolCall.function.name}:`, error);
+        const toolName = ('function' in toolCall && toolCall.function) ? toolCall.function.name : 'unknown';
+        console.error(`Tool execution failed for ${toolName}:`, error);
         
         results.push({
           success: false,
           error: error instanceof Error ? error.message : 'Tool execution failed',
-          toolName: toolCall.function.name
+          toolName
         });
       }
     }
