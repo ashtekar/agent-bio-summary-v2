@@ -198,7 +198,7 @@ export class LLMDrivenBioSummaryAgent {
           })),
           tool_choice: 'auto',
           temperature: 1,  // GPT-5.1 supports default temperature of 1
-          // TODO: Add reasoning_effort: 'medium' when OpenAI SDK updates types for GPT-5.1
+          reasoning_effort: 'medium',  // Balanced reasoning depth for complex orchestration decisions
           max_tokens: 1000
         });
 
@@ -392,6 +392,11 @@ export class LLMDrivenBioSummaryAgent {
    */
   private preprocessToolCalls(toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[]): OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] {
     return toolCalls.map(toolCall => {
+      // Type guard: Only process function tool calls (not custom tool calls)
+      if (!('function' in toolCall) || !toolCall.function) {
+        return toolCall;
+      }
+      
       // Handle tools that might have large article data
       if (toolCall.function.name === 'extractScoreAndStoreArticles' || toolCall.function.name === 'extractArticles' || toolCall.function.name === 'scoreRelevancy' || toolCall.function.name === 'storeArticles' || toolCall.function.name === 'summarizeArticle' || toolCall.function.name === 'collateSummary' || toolCall.function.name === 'sendEmail') {
         try {
@@ -640,6 +645,12 @@ export class LLMDrivenBioSummaryAgent {
 
     for (const toolCall of toolCalls) {
       try {
+        // Type guard: Only process function tool calls
+        if (!('function' in toolCall) || !toolCall.function) {
+          console.warn('Skipping non-function tool call:', toolCall);
+          continue;
+        }
+        
         // Parse tool arguments (should be valid JSON after preprocessing)
         let args;
         try {
@@ -661,12 +672,13 @@ export class LLMDrivenBioSummaryAgent {
         this.updateContextFromToolResult(toolCall.function.name, result);
 
       } catch (error) {
-        console.error(`Tool execution failed for ${toolCall.function.name}:`, error);
+        const toolName = ('function' in toolCall && toolCall.function) ? toolCall.function.name : 'unknown';
+        console.error(`Tool execution failed for ${toolName}:`, error);
         
         results.push({
           success: false,
           error: error instanceof Error ? error.message : 'Tool execution failed',
-          toolName: toolCall.function.name
+          toolName
         });
       }
     }

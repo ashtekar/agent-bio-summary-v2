@@ -25,7 +25,7 @@
     "langchain": "^0.3.35",
     "langsmith": "^0.3.73",
     "next": "14.0.4",
-    "openai": "^4.20.1",
+    "openai": "^6.9.0",
     "react": "^18",
     "react-dom": "^18",
     "resend": "^2.1.0",
