@@ -58,7 +58,7 @@ export class LangChainBioSummaryAgent {
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: 'gpt-5.1',  // GPT-5.1 for superior instruction following and context adherence
       temperature: 1,  // GPT-5.1 supports default temperature of 1
-      reasoning_effort: 'medium',  // Balanced reasoning depth for complex orchestration decisions
+      // TODO: Add reasoningEffort: 'medium' when LangChain updates types for GPT-5.1
       maxTokens: 4000, // Tool calls need more tokens
       streaming: false
     });

@@ -198,7 +198,7 @@ export class LLMDrivenBioSummaryAgent {
           })),
           tool_choice: 'auto',
           temperature: 1,  // GPT-5.1 supports default temperature of 1
-          reasoning_effort: 'medium',  // Balanced reasoning depth for complex orchestration decisions
+          // TODO: Add reasoning_effort: 'medium' when OpenAI SDK updates types for GPT-5.1
           max_tokens: 1000
         });
 
