@@ -53,11 +53,12 @@ export class LangChainBioSummaryAgent {
 
     // Initialize LangChain ChatOpenAI model
     // Note: Using 4000 maxTokens to allow for large tool call arguments (e.g., passing multiple search results)
-    // GPT-5 for superior instruction following and context adherence
+    // GPT-5.1 for superior instruction following and context adherence
     this.llm = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: 'gpt-5',  // GPT-5 for superior instruction following and context adherence
-      temperature: 1,  // GPT-5 only supports default temperature of 1
+      modelName: 'gpt-5.1',  // GPT-5.1 for superior instruction following and context adherence
+      temperature: 1,  // GPT-5.1 supports default temperature of 1
+      reasoning_effort: 'medium',  // Balanced reasoning depth for complex orchestration decisions
       maxTokens: 4000, // Tool calls need more tokens
       streaming: false
     });
@@ -143,16 +144,16 @@ export class LangChainBioSummaryAgent {
       }
 
       // Execute agent with LangChain (pass context data to the LLM)
-      console.log('🤖 Invoking LangChain AgentExecutor with GPT-5...');
+      console.log('🤖 Invoking LangChain AgentExecutor with GPT-5.1...');
       console.log('Agent config:', {
         threadId: this.context.threadId,
         maxIterations: this.executor.maxIterations,
         tools: allLangChainTools.map(t => t.name),
-        model: 'gpt-5'
+        model: 'gpt-5.1'
       });
       
-      // Add GPT-5 output monitoring
-      console.log('[GPT-5] Starting execution with enhanced monitoring for output issues');
+      // Add GPT-5.1 output monitoring
+      console.log('[GPT-5.1] Starting execution with enhanced monitoring for output issues');
       
       // Pass context data to the LLM so it has access to recipients, search settings, etc.
       const contextInput = `Generate a daily synthetic biology summary. Here's the context:
@@ -198,22 +199,22 @@ Use the available tools in the proper sequence to complete the task.`;
         }
       );
 
-      // Enhanced GPT-5 output validation
-      console.log('[GPT-5] Agent execution completed, validating output...');
-      console.log('[GPT-5] Result type:', typeof result);
-      console.log('[GPT-5] Result keys:', Object.keys(result || {}));
+      // Enhanced GPT-5.1 output validation
+      console.log('[GPT-5.1] Agent execution completed, validating output...');
+      console.log('[GPT-5.1] Result type:', typeof result);
+      console.log('[GPT-5.1] Result keys:', Object.keys(result || {}));
       
       if (!result || (typeof result === 'object' && Object.keys(result).length === 0)) {
-        console.error('[GPT-5] Empty or null result detected - GPT-5 may have output issues');
-        throw new Error('GPT-5 returned empty result - potential output issue');
+        console.error('[GPT-5.1] Empty or null result detected - GPT-5.1 may have output issues');
+        throw new Error('GPT-5.1 returned empty result - potential output issue');
       }
       
       if (result.output && typeof result.output === 'string' && result.output.trim().length === 0) {
-        console.error('[GPT-5] Empty output string detected');
-        throw new Error('GPT-5 returned empty output string');
+        console.error('[GPT-5.1] Empty output string detected');
+        throw new Error('GPT-5.1 returned empty output string');
       }
       
-      console.log('[GPT-5] Output validation passed:', {
+      console.log('[GPT-5.1] Output validation passed:', {
         hasOutput: !!result.output,
         outputLength: result.output?.length || 0,
         hasIntermediateSteps: !!(result.intermediateSteps && result.intermediateSteps.length > 0)

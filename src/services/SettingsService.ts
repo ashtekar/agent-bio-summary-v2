@@ -420,8 +420,8 @@ export class SettingsService {
         costPer1kTokens: 0.005
       },
       {
-        id: 'gpt-5',
-        name: 'GPT-5',
+        id: 'gpt-5.1',
+        name: 'GPT-5.1',
         description: 'Most advanced model with enhanced reasoning and instruction following',
         maxTokens: 128000,
         costPer1kTokens: 0.00125

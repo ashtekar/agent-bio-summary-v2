@@ -423,7 +423,7 @@ export const sendEmailTool = new DynamicStructuredTool({
     console.log('🔍 [SEND-EMAIL-TOOL] Session ID:', sessionId);
     console.log('🔍 [SEND-EMAIL-TOOL] Input recipients received:', JSON.stringify(input.recipients || [], null, 2));
     
-    // ALWAYS USE CONTEXT RECIPIENTS (ignore GPT-5's hallucinated recipients)
+    // ALWAYS USE CONTEXT RECIPIENTS (ignore GPT-5.1's hallucinated recipients)
     const state = toolStateManager.getState(sessionId, userId);
     console.log('🔍 [SEND-EMAIL-TOOL] ToolState context:', JSON.stringify(state.context, null, 2));
     
@@ -431,26 +431,26 @@ export const sendEmailTool = new DynamicStructuredTool({
     
     if (state.context?.recipients) {
       recipients = state.context.recipients;
-      console.log('✅ [SEND-EMAIL-TOOL] Using context recipients (ignoring GPT-5 input):', recipients.length);
+      console.log('✅ [SEND-EMAIL-TOOL] Using context recipients (ignoring GPT-5.1 input):', recipients.length);
       console.log('✅ [SEND-EMAIL-TOOL] Context recipients:', JSON.stringify(recipients, null, 2));
       
-      // Log what GPT-5 tried to pass (for debugging)
+      // Log what GPT-5.1 tried to pass (for debugging)
       if (input.recipients && input.recipients.length > 0) {
-        console.log('⚠️ [SEND-EMAIL-TOOL] GPT-5 tried to use fake recipients:', JSON.stringify(input.recipients, null, 2));
-        console.log('⚠️ [SEND-EMAIL-TOOL] Ignoring GPT-5 recipients in favor of context recipients');
+        console.log('⚠️ [SEND-EMAIL-TOOL] GPT-5.1 tried to use fake recipients:', JSON.stringify(input.recipients, null, 2));
+        console.log('⚠️ [SEND-EMAIL-TOOL] Ignoring GPT-5.1 recipients in favor of context recipients');
       }
     } else {
       console.error('❌ [SEND-EMAIL-TOOL] No recipients in context!');
       console.error('❌ [SEND-EMAIL-TOOL] Available state keys:', Object.keys(state));
       
-      // Fallback to GPT-5's recipients if context is missing
+      // Fallback to GPT-5.1's recipients if context is missing
       if (input.recipients && input.recipients.length > 0) {
         recipients = input.recipients.map(r => ({
           email: r.email,
           name: r.name,
           preferences: r.preferences || { frequency: 'daily', format: 'html' }
         }));
-        console.log('⚠️ [SEND-EMAIL-TOOL] Fallback: Using GPT-5 recipients due to missing context');
+        console.log('⚠️ [SEND-EMAIL-TOOL] Fallback: Using GPT-5.1 recipients due to missing context');
       }
     }
     
