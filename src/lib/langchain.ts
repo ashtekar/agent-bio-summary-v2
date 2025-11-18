@@ -262,8 +262,10 @@ export class LangchainIntegration {
   }
 
   /**
-   * Evaluate summary quality using LLM-as-a-judge
+   * Evaluate summary quality using LLM-as-a-judge (GPT-5.1)
    * @deprecated This method is deprecated. Use LangSmith UI evaluators instead.
+   * 
+   * Note: Uses GPT-5.1 with low reasoning effort for fast, consistent scoring.
    */
   async evaluateSummary(params: {
     title: string;
@@ -286,8 +288,9 @@ export class LangchainIntegration {
 
     const evaluatorModel = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: 'gpt-4o-mini',
-      temperature: 0.2,
+      modelName: 'gpt-5.1',        // GPT-5.1 for superior evaluation quality
+      temperature: 0.2,             // Low temperature for consistent scoring
+      reasoningEffort: 'low',       // Light reasoning for fast evaluation
       maxTokens: 1000,
     });
 
@@ -320,8 +323,10 @@ export class LangchainIntegration {
   }
 
   /**
-   * Evaluate collated summary quality
+   * Evaluate collated summary quality using LLM-as-a-judge (GPT-5.1)
    * @deprecated This method is deprecated. Use LangSmith UI evaluators instead.
+   * 
+   * Note: Uses GPT-5.1 with low reasoning effort for fast, consistent scoring.
    */
   async evaluateCollatedSummary(summary: string, count: number): Promise<{
     coherence: number;
@@ -340,8 +345,9 @@ export class LangchainIntegration {
 
     const evaluatorModel = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: 'gpt-4o-mini',
-      temperature: 0.2,
+      modelName: 'gpt-5.1',        // GPT-5.1 for superior evaluation quality
+      temperature: 0.2,             // Low temperature for consistent scoring
+      reasoningEffort: 'low',       // Light reasoning for fast evaluation
       maxTokens: 1000,
     });
 
