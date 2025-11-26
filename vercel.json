@@ -4,6 +4,12 @@
         "maxDuration": 300
       }
   },
+  "crons": [
+    {
+      "path": "/api/cron/daily-summary",
+      "schedule": "0 13 * * *"
+    }
+  ],
   "env": {
     "LOG_LEVEL": "3"
   },
@@ -13,4 +19,3 @@
     }
   }
 }
-
