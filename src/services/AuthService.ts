@@ -267,6 +267,32 @@ export class AuthService {
   }
 
   /**
+   * Get the first admin user from the database
+   * Used by cron jobs to have a valid user context
+   */
+  async getFirstAdminUser(): Promise<UserProfile | null> {
+    try {
+      const supabase = this.getSupabase();
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('[AUTH] Get first admin user error:', error);
+        return null;
+      }
+
+      return data as UserProfile;
+    } catch (error: any) {
+      console.error('[AUTH] Get first admin user exception:', error);
+      return null;
+    }
+  }
+
+  /**
    * Update user's last active timestamp
    */
   async updateLastActive(userId: string): Promise<void> {
