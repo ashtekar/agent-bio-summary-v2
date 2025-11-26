@@ -50,7 +50,14 @@ export async function GET(request: NextRequest) {
     // Feature flag: Use LangChain agent or legacy OpenAI SDK agent
     const useLangChainAgent = process.env.USE_LANGCHAIN_AGENT === 'true';
     
-    let context;
+    let context: {
+      searchSettings: SearchSettings;
+      systemSettings: SystemSettings;
+      recipients: EmailRecipient[];
+      threadId?: string;
+      userId?: string;
+    };
+    
     try {
       const supabaseSettings = await settingsService.getAllSettings(userId);
       context = { ...supabaseSettings };
