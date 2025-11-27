@@ -209,7 +209,8 @@ Use the available tools in the proper sequence to complete the task.`;
         throw new Error('GPT-5.1 returned empty result - potential output issue');
       }
       
-      if (result.output && typeof result.output === 'string' && result.output.trim().length === 0) {
+      // Fix: Check for empty string properly (empty string is falsy, so result.output && ... skips it)
+      if (typeof result.output === 'string' && result.output.trim().length === 0) {
         console.error('[GPT-5.1] Empty output string detected');
         throw new Error('GPT-5.1 returned empty output string');
       }
@@ -225,7 +226,9 @@ Use the available tools in the proper sequence to complete the task.`;
           console.warn('No tools were executed - agent may have stopped prematurely');
         }
 
-        // Update parent trace with outputs
+        // Update parent trace with outputs - SKIPPED to avoid 409 Conflict
+        // AgentExecutor already manages the run lifecycle when runId is passed.
+        /*
         if (this.parentRunId) {
           try {
             await langchainIntegration.updateTrace(this.parentRunId, {
@@ -235,9 +238,9 @@ Use the available tools in the proper sequence to complete the task.`;
             });
           } catch (traceError) {
             console.warn('[LANGSMITH] Failed to update final trace (non-critical):', traceError);
-            // Do not throw here, as the agent execution was successful
           }
         }
+        */
 
         const finalToolState = this.getToolStateSnapshot();
         const processedResult = this.processAgentResult(result, finalToolState);
