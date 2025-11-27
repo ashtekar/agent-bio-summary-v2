@@ -83,7 +83,7 @@ export class LangChainBioSummaryAgent {
     this.executor = new AgentExecutor({
       agent,
       tools: allLangChainTools,
-      maxIterations: 10,
+      maxIterations: 30, // Increased from 10 to 30 to handle batch processing of summaries
       returnIntermediateSteps: true,
       handleParsingErrors: true,
       verbose: false  // Reduce logging noise
@@ -227,11 +227,16 @@ Use the available tools in the proper sequence to complete the task.`;
 
         // Update parent trace with outputs
         if (this.parentRunId) {
-          await langchainIntegration.updateTrace(this.parentRunId, {
-            success: true,
-            output: result.output,
-            steps: result.intermediateSteps?.length || 0
-          });
+          try {
+            await langchainIntegration.updateTrace(this.parentRunId, {
+              success: true,
+              output: result.output,
+              steps: result.intermediateSteps?.length || 0
+            });
+          } catch (traceError) {
+            console.warn('[LANGSMITH] Failed to update final trace (non-critical):', traceError);
+            // Do not throw here, as the agent execution was successful
+          }
         }
 
         const finalToolState = this.getToolStateSnapshot();
