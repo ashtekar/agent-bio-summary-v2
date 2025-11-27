@@ -83,7 +83,7 @@ export class LangChainBioSummaryAgent {
     this.executor = new AgentExecutor({
       agent,
       tools: allLangChainTools,
-      maxIterations: 10,
+      maxIterations: 30, // Increased from 10 to 30 to handle batch processing of summaries
       returnIntermediateSteps: true,
       handleParsingErrors: true,
       verbose: false  // Reduce logging noise
@@ -209,7 +209,8 @@ Use the available tools in the proper sequence to complete the task.`;
         throw new Error('GPT-5.1 returned empty result - potential output issue');
       }
       
-      if (result.output && typeof result.output === 'string' && result.output.trim().length === 0) {
+      // Fix: Check for empty string properly (empty string is falsy, so result.output && ... skips it)
+      if (typeof result.output === 'string' && result.output.trim().length === 0) {
         console.error('[GPT-5.1] Empty output string detected');
         throw new Error('GPT-5.1 returned empty output string');
       }
@@ -225,14 +226,21 @@ Use the available tools in the proper sequence to complete the task.`;
           console.warn('No tools were executed - agent may have stopped prematurely');
         }
 
-        // Update parent trace with outputs
+        // Update parent trace with outputs - SKIPPED to avoid 409 Conflict
+        // AgentExecutor already manages the run lifecycle when runId is passed.
+        /*
         if (this.parentRunId) {
-          await langchainIntegration.updateTrace(this.parentRunId, {
-            success: true,
-            output: result.output,
-            steps: result.intermediateSteps?.length || 0
-          });
+          try {
+            await langchainIntegration.updateTrace(this.parentRunId, {
+              success: true,
+              output: result.output,
+              steps: result.intermediateSteps?.length || 0
+            });
+          } catch (traceError) {
+            console.warn('[LANGSMITH] Failed to update final trace (non-critical):', traceError);
+          }
         }
+        */
 
         const finalToolState = this.getToolStateSnapshot();
         const processedResult = this.processAgentResult(result, finalToolState);
